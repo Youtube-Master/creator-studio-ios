@@ -4,15 +4,22 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Creator Studio</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Creator Studio">
+<meta name="theme-color" content="#101217">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
 <style>
 :root{--bg:#101217;--card:#1a1d24;--text:#eceef2;--muted:#9aa1ad;--line:#2a2e37;--accent:#ff5a66;--chip:#252932;--ok:#4ade80}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 "Noto Sans CJK KR","Noto Sans KR",sans-serif}
-header{position:sticky;top:0;z-index:5;background:var(--bg);padding:14px 16px 6px;display:flex;align-items:center;gap:8px}
+html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 -apple-system,"Apple SD Gothic Neo","Noto Sans CJK KR","Noto Sans KR",sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--bg);padding:calc(14px + env(safe-area-inset-top)) 16px 6px;display:flex;align-items:center;gap:8px}
 header h1{font-size:20px;margin:0;flex:1}
 header .sub{font-size:12px;color:var(--muted)}
 main{padding:4px 16px 96px}
-nav{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;background:var(--card);border-top:1px solid var(--line)}
+nav{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;padding-bottom:env(safe-area-inset-bottom);background:var(--card);border-top:1px solid var(--line)}
 nav button{flex:1;border:0;background:none;color:var(--muted);padding:8px 0 8px;font:inherit;font-size:11px;display:flex;flex-direction:column;align-items:center;gap:2px}
 nav button span{font-size:20px;line-height:1}
 nav button.on{color:var(--accent);font-weight:700}
@@ -59,13 +66,51 @@ label{font-size:13px;color:var(--muted)}
 <script>
 "use strict";
 // ---- 앱(자바) 연결. 브라우저에서 열면(미리 보기) 흉내만 낸다 ----
+// 웹(아이폰 홈 화면 웹앱)에서는 브라우저 기능으로 같은 일을 한다. 테스트는 window.MOCK_HTTP로 요청을 흉내 낸다.
+const WEB=!window.CSApp;
+function b64ToBlob(b64,mime){const bin=atob(b64);const u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return new Blob([u],{type:mime})}
+function blobToB64(blob){return new Promise((ok,no)=>{const fr=new FileReader();fr.onload=()=>ok(String(fr.result).split(",",2)[1]||"");fr.onerror=()=>no(fr.error);fr.readAsDataURL(blob)})}
+function webShare(file,text){const data={files:[file]};if(text)data.text=text;
+  if(navigator.canShare&&navigator.canShare(data)){navigator.share(data).catch(()=>{});return "공유 창을 열었어요(‘이미지 저장’·‘비디오 저장’을 누르면 사진 앱에 저장돼요)"}
+  const a=document.createElement("a");a.href=URL.createObjectURL(file);a.download=file.name;document.body.append(a);a.click();a.remove();return "내려받았어요"}
+async function webHttp(s){
+  if(window.MOCK_HTTP)return window.MOCK_HTTP(s);
+  const headers=Object.assign({},s.headers||{});if(/api\.anthropic\.com/.test(s.url))headers["anthropic-dangerous-direct-browser-access"]="true";
+  let body=s.body;
+  if(s.multipart){body=new FormData();for(const[k,v]of Object.entries(s.multipart.fields||{}))body.append(k,v);
+    for(const f of s.multipart.files||[])body.append(f.field,b64ToBlob(f.base64,f.mime||"application/octet-stream"),f.filename);delete headers["content-type"]}
+  const ctl=new AbortController();const t=setTimeout(()=>ctl.abort(),s.timeout||300000);
+  try{if(s.binary){try{const r=await fetch(s.url,{signal:ctl.signal});if(!r.ok)return{status:r.status,text:""};return{status:r.status,base64:await blobToB64(await r.blob())}}
+      catch(e){return await imgFallback(s.url)}}
+    const r=await fetch(s.url,{method:s.method||"GET",headers,body,signal:ctl.signal});return{status:r.status,text:await r.text()}}
+  catch(e){return{status:0,error:e.name==="AbortError"?"시간이 너무 오래 걸렸어요":String(e.message||e)}}finally{clearTimeout(t)}}
+// 그림 서버가 fetch를 막으면 <img>로 읽어 본다(서버가 허락해야 캔버스에서 꺼낼 수 있다)
+function imgFallback(url){return new Promise(ok=>{const im=new Image();im.crossOrigin="anonymous";
+  im.onload=()=>{try{const c=document.createElement("canvas");c.width=im.naturalWidth;c.height=im.naturalHeight;c.getContext("2d").drawImage(im,0,0);ok({status:200,base64:c.toDataURL("image/png").split(",")[1]})}catch(e){ok({status:0,error:"그림 서버가 웹앱에서 그림 꺼내기를 막았어요"})}};
+  im.onerror=()=>ok({status:0,error:"그림을 내려받지 못했어요(그림 서버가 막음)"});im.src=url})}
+// 카드 PNG → 8초 세로 영상(사파리는 mp4, 다른 브라우저는 webm). 실제 시간만큼(8초) 걸린다.
+async function webReel(b64){const im=new Image();im.src="data:image/png;base64,"+b64;await im.decode();
+  const c=document.createElement("canvas");c.width=1080;c.height=1920;const g=c.getContext("2d");
+  const paint=()=>{g.fillStyle="#000";g.fillRect(0,0,1080,1920);const h=Math.round(im.height*1080/im.width);g.drawImage(im,0,Math.round((1920-h)/2),1080,h)};paint();
+  const type=["video/mp4;codecs=avc1","video/mp4","video/webm;codecs=vp9","video/webm"].find(t=>window.MediaRecorder&&MediaRecorder.isTypeSupported(t));
+  if(!type)throw new Error("이 브라우저는 영상 만들기를 못 해요");
+  const stream=c.captureStream(30);const rec=new MediaRecorder(stream,{mimeType:type,videoBitsPerSecond:6000000});const parts=[];rec.ondataavailable=e=>{if(e.data.size)parts.push(e.data)};
+  const done=new Promise(r=>rec.onstop=r);rec.start(500);const t0=performance.now();
+  while(performance.now()-t0<8000){paint();await new Promise(r=>requestAnimationFrame(r))}
+  rec.stop();await done;stream.getTracks().forEach(t=>t.stop());return new Blob(parts,{type:type.split(";")[0]})}
 const N = window.CSApp || {
-  get:k=>localStorage.getItem("v:"+k)||"", set:(k,v)=>localStorage.setItem("v:"+k,v), pcUrl:()=>localStorage.getItem("pc")||"",
-  setPcUrl:u=>localStorage.setItem("pc",u), openPc:()=>toast("(미리 보기) PC 화면 열기"), openUrl:u=>window.open(u),
-  copy:t=>{navigator.clipboard&&navigator.clipboard.writeText(t);return true}, pasteText:()=>"", shareText:t=>toast("(미리 보기) 공유"),
-  saveShare:()=>"(미리 보기) 저장했어요", save:()=>"(미리 보기) 저장했어요",
-  makeReel:(id)=>setTimeout(()=>CS._done(id,{ok:true}),300),
-  http:(id,spec)=>{const s=JSON.parse(spec);(window.MOCK_HTTP?window.MOCK_HTTP(s):fetch(s.url,{method:s.method||"GET",headers:s.headers,body:s.body}).then(async r=>({status:r.status,text:await r.text()}))).then(r=>CS._done(id,r)).catch(e=>CS._done(id,{status:0,error:String(e)}))}
+  get:k=>{try{return localStorage.getItem("v:"+k)||""}catch(e){return""}}, set:(k,v)=>{try{localStorage.setItem("v:"+k,v)}catch(e){}},
+  pcUrl:()=>{try{return localStorage.getItem("pc")||""}catch(e){return""}}, setPcUrl:u=>{try{localStorage.setItem("pc",(u||"").trim())}catch(e){}},
+  openPc:()=>{const u=N.pcUrl();if(!u){toast("⚙ 설정에 PC 주소(텔레그램으로 온 링크)를 넣어 주세요");CS.go("settings");return}window.open(u,"_blank")},
+  openUrl:u=>window.open(u,"_blank"),
+  copy:t=>{try{const ta=document.createElement("textarea");ta.value=t;ta.setAttribute("readonly","");ta.style.cssText="position:fixed;top:0;opacity:0";document.body.append(ta);ta.select();ta.setSelectionRange(0,t.length);const ok=document.execCommand("copy");ta.remove();if(ok)return true}catch(e){}
+    if(navigator.clipboard){navigator.clipboard.writeText(t).catch(()=>{});return true}return false},
+  pasteText:()=>navigator.clipboard&&navigator.clipboard.readText?navigator.clipboard.readText().catch(()=>""):"",
+  shareText:t=>{if(navigator.share)navigator.share({text:t}).catch(()=>{});else{N.copy(t);toast("복사했어요. Threads에 붙여 넣어 주세요")}},
+  saveShare:(name,mime,b64,text)=>webShare(new File([b64ToBlob(b64,mime)],name,{type:mime}),text),
+  save:()=>"‘📤 인스타·공유’를 누르면 사진 앱에 저장하거나 인스타로 보낼 수 있어요",
+  makeReel:(id,name,b64)=>{webReel(b64).then(blob=>{const ext=blob.type.includes("mp4")?".mp4":".webm";CS.reelFile=new File([blob],name.replace(/\.mp4$/,ext),{type:blob.type});CS._done(id,{ok:true,web:true})}).catch(e=>CS._done(id,{ok:false,error:e.message||String(e)}))},
+  http:(id,spec)=>{webHttp(JSON.parse(spec)).then(r=>CS._done(id,r)).catch(e=>CS._done(id,{status:0,error:String(e)}))}
 };
 const IOS=/iPhone|iPad/.test(navigator.userAgent);
 const CS={cbs:{},n:0,tab:"cardnews",result:null,busy:false,mode:"random",shots:[],linkUrl:""};
@@ -223,7 +268,7 @@ async function makeCards(){if(CS.busy)return;CS.busy=true;const mode=CS.mode;let
   else{ch=nextChar();progress("✍️ Claude가 틀·주제를 고르고 일본어 문구 12개를 쓰는 중… (30초쯤)");
    c=cleanCards(await claude([{type:"text",text:randomPrompt(CS.topic||"",ch)}],CARD_SCHEMA),12);
    if(c.kind==="month")c.items.forEach((x,i)=>{if(!/月$/.test(x.subject))x.subject=MONTHS[i]})}
-  progress("🖼 문구 미리 보기를 그리는 중…");CS.result={cards:c,char:ch,png:await renderCard(c,null,S("account")),sheet:null,at:Date.now()};drawCardnews();
+  progress("🖼 문구 미리 보기를 그리는 중…");CS.reelFile=null;CS.result={cards:c,char:ch,png:await renderCard(c,null,S("account")),sheet:null,at:Date.now()};drawCardnews();
   const[cols,rows]=grid(c.items.length);const sheet=await kie(sheetPrompt(c,ch),cols===4&&rows===3?"4:3":aspectFor(cols,rows),progress);
   progress("🖼 카드를 그리는 중…");CS.result.sheet=sheet;CS.result.png=await renderCard(c,sheet,S("account"));remember(c);
   const name=fileBase(c)+".png";const where=N.save(name,"image/png",CS.result.png.split(",")[1]);CS.result.saved=name;progress("");toast("✅ 다 만들었어요. "+where)}
@@ -231,10 +276,11 @@ async function makeCards(){if(CS.busy)return;CS.busy=true;const mode=CS.mode;let
 function fileBase(c){const d=new Date();const p=n=>String(n).padStart(2,"0");return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}_${(c.title_red||"card").replace(/[\\/:*?"<>|\s]/g,"").slice(0,16)}`}
 async function redraw(){const r=CS.result;if(!r||CS.busy)return;CS.busy=true;drawCardnews();
  try{const[cols,rows]=grid(r.cards.items.length);r.sheet=await kie(sheetPrompt(r.cards,r.char),cols===4&&rows===3?"4:3":aspectFor(cols,rows),t=>{const e=$("#prog");if(e)e.textContent=t});
-  r.png=await renderCard(r.cards,r.sheet,S("account"));N.save(fileBase(r.cards)+".png","image/png",r.png.split(",")[1]);toast("그림을 다시 그렸어요")}
+  CS.reelFile=null;r.png=await renderCard(r.cards,r.sheet,S("account"));N.save(fileBase(r.cards)+".png","image/png",r.png.split(",")[1]);toast("그림을 다시 그렸어요")}
  catch(e){toast(e.message)}finally{CS.busy=false;drawCardnews()}}
 async function reel(share){const r=CS.result;if(!r)return;toast("🎬 8초 릴스를 만드는 중… (10~30초)");
- const res=await native("makeReel",fileBase(r.cards)+".mp4",r.png.split(",")[1],!!share);toast(res.ok?"🎬 릴스를 저장했어요"+(IOS?"(사진 앱)":"(다운로드/CreatorStudio)"):"릴스를 못 만들었어요: "+res.error)}
+ const res=await native("makeReel",fileBase(r.cards)+".mp4",r.png.split(",")[1],!!share);if(res.ok&&res.web){drawCardnews();toast("🎬 릴스가 다 됐어요. ‘📤 릴스 저장·공유’를 눌러 주세요");return}
+ toast(res.ok?"🎬 릴스를 저장했어요"+(IOS?"(사진 앱)":"(다운로드/CreatorStudio)"):"릴스를 못 만들었어요: "+res.error)}
 async function telegram(){const r=CS.result,tok=S("telegram_token"),chat=S("telegram_chat");if(!tok||!chat){toast("⚙ 설정에서 텔레그램을 넣거나 PC에서 가져와 주세요");return}
  toast("✈️ 텔레그램으로 보내는 중…");const base="https://api.telegram.org/bot"+tok;const b64=s=>btoa(unescape(encodeURIComponent(s)));const name=fileBase(r.cards);
  const send=(fn,file)=>http({method:"POST",url:base+"/"+fn,multipart:{fields:{chat_id:chat},files:[file]}});
@@ -265,7 +311,7 @@ function resultCard(r){const c=r.cards;const cap=captionText(c);
   r.sheet?h("div",{},
    h("div",{class:"row",style:"margin-top:8px"},
     h("button",{class:"btn main small",onclick:()=>{N.copy(cap);toast(N.saveShare(fileBase(c)+".png","image/png",r.png.split(",")[1],cap)+" · 캡션은 복사해 뒀어요")}},"📤 인스타·공유"),
-    h("button",{class:"btn small",onclick:()=>reel(true)},"🎬 릴스(8초) 만들기"),
+    WEB&&CS.reelFile?h("button",{class:"btn main small",onclick:()=>toast(webShare(CS.reelFile))},"📤 릴스 저장·공유"):h("button",{class:"btn small",onclick:()=>reel(true)},"🎬 릴스(8초) 만들기"),
     h("button",{class:"btn small",onclick:telegram},"✈️ 텔레그램"),
     h("button",{class:"btn small",disabled:CS.busy,onclick:redraw},"🎨 그림 다시")),
    h("div",{class:"row",style:"margin-top:6px"},h("button",{class:"btn small",onclick:()=>copy(cap,"캡션")},"📋 캡션"),c.comment?h("button",{class:"btn small",onclick:()=>copy(c.comment,"고정댓글")},"📋 고정댓글"):null,
@@ -303,17 +349,19 @@ function drawThreads(){const st=styles();const cur=S("threads_cur")||st[0].name;
 
 // ---- 메모(노션) ----
 function drawMemo(){const title=h("input",{placeholder:"제목(비우면 첫 줄)"}),body=h("textarea",{placeholder:"떠오른 아이디어를 적어 주세요"}),tags=h("input",{placeholder:"태그(쉼표로 나눠서)"});
- const ok=S("notion_token")&&S("notion_memo_db");const local=SJ("memos",[]);
+ const ok=WEB?!!pcKey():S("notion_token")&&S("notion_memo_db");const local=SJ("memos",[]);
  const btn=h("button",{class:"btn main full",onclick:async()=>{const t=title.value.trim()||body.value.trim().split("\n")[0].slice(0,60);if(!t){toast("메모 내용을 적어 주세요");return}
   btn.disabled=true;const m={title:t,body:body.value,tags:tags.value,at:new Date().toISOString().slice(0,10),sent:false};
-  try{if(ok){const props={"제목":{title:[{text:{content:t.slice(0,2000)}}]},"날짜":{date:{start:m.at}}};const tg=m.tags.split(",").map(s=>s.trim().replace(/,/g,"")).filter(Boolean);if(tg.length)props["태그"]={multi_select:tg.map(name=>({name}))};
+  try{if(WEB&&pcKey()){const r=await http({method:"POST",url:pcOrigin()+"/api/memo",headers:{"X-Key":pcKey(),"content-type":"application/json"},body:JSON.stringify({title:t,body:m.body,tags:m.tags}),timeout:30000});
+    if(r.status!==200){let msg=r.error||"";try{msg=JSON.parse(r.text).error}catch(e){}throw new Error("PC로 노션 저장 실패: "+(msg||r.status))}m.sent=true;toast("PC를 거쳐 노션에 저장했어요")}
+   else if(ok&&!WEB){const props={"제목":{title:[{text:{content:t.slice(0,2000)}}]},"날짜":{date:{start:m.at}}};const tg=m.tags.split(",").map(s=>s.trim().replace(/,/g,"")).filter(Boolean);if(tg.length)props["태그"]={multi_select:tg.map(name=>({name}))};
     const r=await http({method:"POST",url:"https://api.notion.com/v1/pages",headers:{"Authorization":"Bearer "+S("notion_token"),"Notion-Version":"2022-06-28","content-type":"application/json"},
      body:JSON.stringify({parent:{database_id:S("notion_memo_db")},properties:props,children:m.body.split("\n").filter(Boolean).map(l=>({object:"block",type:"paragraph",paragraph:{rich_text:[{text:{content:l.slice(0,2000)}}]}}))})});
     if(r.status!==200){let msg="";try{msg=JSON.parse(r.text).message}catch(e){}throw new Error("노션이 거절했어요("+r.status+"): "+msg)}m.sent=true;toast("노션에 저장했어요")}
    else toast("이 폰에 저장했어요(노션 연결 전)")}
   catch(e){toast(e.message+" — 이 폰에 저장해 뒀어요")}
   local.unshift(m);setJ("memos",local.slice(0,200));btn.disabled=false;drawMemo()}},ok?"📒 노션에 저장":"💾 이 폰에 저장");
- put(h("div",{class:"card"},h("h2",{},"💡 아이디어 메모 ",h("span",{class:"tag"},"PC 없이")),title,body,tags,btn,!ok?h("p",{class:"muted"},"PC에서 노션을 연결해 두었다면 ⚙ 설정의 'PC에서 가져오기'로 노션에도 저장돼요."):null),
+ put(h("div",{class:"card"},h("h2",{},"💡 아이디어 메모 ",h("span",{class:"tag"},"PC 없이")),title,body,tags,btn,!ok?h("p",{class:"muted"},WEB?"⚙ 설정에 PC 주소를 넣으면 PC가 켜져 있을 때 노션에도 저장돼요(노션은 웹앱에서 바로 저장을 막아요).":"PC에서 노션을 연결해 두었다면 ⚙ 설정의 'PC에서 가져오기'로 노션에도 저장돼요."):WEB?h("p",{class:"muted"},"PC가 켜져 있어야 노션에 저장돼요. 꺼져 있으면 이 폰에 남겨 둬요."):null),
   h("h2",{style:"font-size:15px;margin:16px 2px 6px"},"🗂 최근 메모"),...(local.length?local.slice(0,40).map(m=>h("div",{class:"card"},h("div",{class:"row"},h("b",{class:"grow"},m.title),h("span",{class:"muted"},m.sent?"노션 ✓":"폰")),h("div",{class:"muted"},[m.at,m.tags].filter(Boolean).join(" · ")),m.body?h("div",{class:"post"},m.body):null)):[h("p",{class:"muted"},"아직 메모가 없어요")]))}
 
 // ---- PC ----
@@ -335,7 +383,7 @@ function drawPc(){const url=N.pcUrl();
 // ---- 설정 ----
 function drawSettings(){const f=(k,label,ph,secret)=>{const i=h("input",{value:S(k),placeholder:ph||"",type:secret?"password":"text",onchange:e=>{N.set(k,e.target.value.trim());toast("저장했어요")}});return[h("label",{},label),i]};
  const pc=h("input",{value:N.pcUrl(),placeholder:"https://….trycloudflare.com/#k=…",onchange:e=>{N.setPcUrl(e.target.value);toast("PC 주소를 저장했어요")}});
- put(h("div",{class:"card"},h("h2",{},"🖥️ PC 주소"),pc,h("div",{class:"row"},h("button",{class:"btn small",onclick:()=>{const t=N.pasteText();if(t){pc.value=t.trim();N.setPcUrl(pc.value);toast("붙여 넣었어요")}else toast("복사한 링크가 없어요")}},"📋 붙여넣기"),
+ put(h("div",{class:"card"},h("h2",{},"🖥️ PC 주소"),pc,h("div",{class:"row"},h("button",{class:"btn small",onclick:async()=>{const t=await N.pasteText();if(t){pc.value=t.trim();N.setPcUrl(pc.value);toast("붙여 넣었어요")}else toast("복사한 링크가 없어요")}},"📋 붙여넣기"),
    h("button",{class:"btn small",onclick:importFromPc},"⬇️ PC에서 키 가져오기"))),
   h("div",{class:"card"},h("h2",{},"🔑 키"),...f("claude_key","Claude API 키","sk-ant-…",true),...f("model","Claude 모델","claude-opus-5-5"),...f("kie_key","Kie API 키","",true),
    ...f("notion_token","노션 키","ntn_…",true),...f("notion_memo_db","노션 메모 표 ID"),...f("telegram_token","텔레그램 봇 토큰","123456:ABC…",true),...f("telegram_chat","텔레그램 채팅 ID"),...f("account","카드 아래 @계정","@your_account")),

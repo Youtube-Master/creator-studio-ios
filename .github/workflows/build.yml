@@ -1,0 +1,22 @@
+name: build-ipa
+on:
+  push:
+    branches: [main]
+    paths: ["App/**", "build_ipa.sh", ".github/workflows/build.yml"]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  ipa:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./build_ipa.sh
+      - name: save ipa to the 'ipa' branch
+        run: |
+          mkdir -p /tmp/out && cp build/CreatorStudio.ipa /tmp/out/
+          git config user.name "build bot" && git config user.email "build@users.noreply.github.com"
+          git checkout --orphan ipa && git rm -rfq . && cp /tmp/out/CreatorStudio.ipa .
+          echo "${GITHUB_SHA}" > built-from.txt
+          git add CreatorStudio.ipa built-from.txt && git commit -qm "ipa from ${GITHUB_SHA}"
+          git push -f origin ipa

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleDevelopmentRegion</key><string>ko</string>
+  <key>CFBundleExecutable</key><string>CreatorStudio</string>
+  <key>CFBundleIdentifier</key><string>com.creatorstudio.remote</string>
+  <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+  <key>CFBundleName</key><string>Creator Studio</string>
+  <key>CFBundleDisplayName</key><string>Creator Studio</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleShortVersionString</key><string>1.0</string>
+  <key>CFBundleVersion</key><string>1</string>
+  <key>CFBundleSupportedPlatforms</key><array><string>iPhoneOS</string></array>
+  <key>LSRequiresIPhoneOS</key><true/>
+  <key>MinimumOSVersion</key><string>15.0</string>
+  <key>UIDeviceFamily</key><array><integer>1</integer></array>
+  <key>UIRequiredDeviceCapabilities</key><array><string>arm64</string></array>
+  <key>UILaunchScreen</key><dict><key>UIColorName</key><string></string></dict>
+  <key>UIStatusBarStyle</key><string>UIStatusBarStyleLightContent</string>
+  <key>UIViewControllerBasedStatusBarAppearance</key><true/>
+  <key>UISupportedInterfaceOrientations</key><array><string>UIInterfaceOrientationPortrait</string></array>
+  <key>CFBundleIcons</key><dict><key>CFBundlePrimaryIcon</key><dict>
+    <key>CFBundleIconFiles</key><array><string>AppIcon60x60</string></array>
+    <key>CFBundleIconName</key><string>AppIcon</string></dict></dict>
+  <key>CFBundleURLTypes</key><array><dict><key>CFBundleURLSchemes</key><array><string>creatorstudio</string></array></dict></array>
+  <key>NSAppTransportSecurity</key><dict><key>NSAllowsArbitraryLoads</key><true/></dict>
+  <key>NSPhotoLibraryAddUsageDescription</key><string>만든 카드뉴스 그림과 릴스 영상을 사진 앱에 저장해요.</string>
+  <key>NSPhotoLibraryUsageDescription</key><string>링크형 카드뉴스에 넣을 캡처와 PC로 보낼 영상을 골라요.</string>
+  <key>NSCameraUsageDescription</key><string>사진을 찍어 바로 넣을 때 써요.</string>
+  <key>UIFileSharingEnabled</key><true/>
+  <key>LSSupportsOpeningDocumentsInPlace</key><true/>
+  <key>ITSAppUsesNonExemptEncryption</key><false/>
+</dict>
+</plist>

@@ -697,12 +697,25 @@ function drawSettings(){const f=(k,label,ph,secret)=>{const i=h("input",{value:S
    h("button",{class:"btn small",onclick:importFromPc},"⬇️ PC에서 키 가져오기"))),
   h("div",{class:"card"},h("h2",{},"🔑 키"),...f("claude_key","Claude API 키","sk-ant-…",true),...f("model","Claude 모델","claude-opus-5-5"),...f("kie_key","Kie API 키","",true),
    ...f("notion_token","노션 키","ntn_…",true),...f("notion_memo_db","노션 메모 표 ID"),...f("telegram_token","텔레그램 봇 토큰","123456:ABC…",true),...f("telegram_chat","텔레그램 채팅 ID"),...f("account","카드 아래 @계정","@your_account")),
-  h("p",{class:"muted",style:"text-align:center"},"Creator Studio 앱 1.4 · 키는 이 폰 안에만 저장돼요"))}
+  h("p",{class:"muted",style:"text-align:center"},"Creator Studio 앱 1.6 · 키는 이 폰 안에만 저장돼요"))}
 
+function drawIdeas(){pcView({tab:"ideas",name:"소재 발굴"},async()=>{const d=await pc("/api/ideas");if(CS.tab!=="ideas")return;
+ CS.ideaKind=CS.ideaKind||"일반인";const act=async(path,body)=>{try{const r=await pc(path,{method:"POST",body});toast(r.message||"");setTimeout(drawIdeas,path.endsWith("run")?1500:200)}catch(e){toast(e.message)}};
+ const kinds=["일반인","연예인"].map(k=>h("button",{class:"btn small"+(k===CS.ideaKind?" main":""),onclick:()=>{CS.ideaKind=k;drawIdeas()}},(k==="일반인"?"👤 일반인 레전드 ":"⭐ 연예인 밈 ")+d.items.filter(i=>i.kind===k).length));
+ const list=d.items.filter(i=>i.kind===CS.ideaKind);
+ put(h("div",{class:"card"},h("h2",{},"🔎 유튜브 소재 발굴"),h("div",{class:"muted"},d.state),h("div",{class:"muted"},d.last),
+   h("div",{class:"row",style:"margin-top:8px"},...kinds,h("div",{class:"grow"}),h("button",{class:"btn small",disabled:d.busy||!d.key,onclick:()=>act("/api/ideas/run",{})},d.busy?"찾는 중…":"🔎 지금 찾기"))),
+  list.length?null:h("div",{class:"card muted"},"아직 새 소재가 없어요. PC가 아침·점심·저녁에 찾아서 넣어요."),
+  ...list.map(i=>h("div",{class:"card"},h("b",{},i.title),h("div",{class:"muted"},[i.category,i.form,"조회수 "+i.views,i.year+"년",i.day+" "+i.slot].join(" · ")),
+   i.gist?h("div",{},"🧠 "+i.gist):null,i.flags.length?h("div",{style:"color:#d9534f"},"⚠ "+i.flags.join(" · ")):null,
+   ...i.comments.map(c=>h("div",{class:"muted",style:"margin:4px 0;padding-left:8px;border-left:3px solid #ccc"},c.text+"  👍"+c.likes.toLocaleString())),
+   h("div",{class:"row",style:"margin-top:6px"},h("button",{class:"btn small main",onclick:()=>N.openUrl(i.url)},"▶ 열기"),
+    h("button",{class:"btn small",onclick:()=>copy(i.url,"링크")},"📋 링크"),h("button",{class:"btn small",onclick:()=>act("/api/ideas/mark",{id:i.id,status:"used"})},"✅ 썼어요"),
+    h("button",{class:"btn small",onclick:()=>act("/api/ideas/mark",{id:i.id,status:"hidden"})},"🙈 빼기")))))})}
 // ---- 화면 전환: 좁은 화면(Z폴드 바깥 화면·보통 폰)은 아래 탭 5개, 넓은 화면(Z폴드 펼침·태블릿)은 왼쪽 메뉴 전부 ----
 const DEST=[["home","🏠","홈",drawHome,"PC 상태 · 바로가기"],["cardnews","🗂","카드뉴스",drawCardnews,"폰에서 바로 · 원클릭·링크형"],["threads","🧵","쓰레드 글",drawThreads,"폰에서 바로"],["memo","💡","메모",drawMemo,"노션 저장"],
  ["upload","📤","업로드",drawUpload,"업로드 관리 · 영상 보내기"],["revenue","💰","채널 수익",drawRevenue,"일수익 · 새로 읽기"],["library","📚","제작 라이브러리",drawLibrary,"지침 카드 · Claude에서 만들기"],
- ["playlist","🎵","AI 플레이리스트",drawPlaylist,"PC가 곡·영상 만들기"],["kakao","💬","카톡 중계",drawKakao,"켜기·끄기 · 기록"],["ig","📱","인스타(폰) 올리기",drawIg,"PC에서 열고 원격으로"],
+ ["ideas","🔎","소재 발굴",drawIdeas,"유튜브 소재 · 일반인/연예인"],["playlist","🎵","AI 플레이리스트",drawPlaylist,"PC가 곡·영상 만들기"],["kakao","💬","카톡 중계",drawKakao,"켜기·끄기 · 기록"],["ig","📱","인스타(폰) 올리기",drawIg,"PC에서 열고 원격으로"],
  ["remote","🖥️","PC 원격 조작",drawRemote,"PC 화면 누르기 · 글자 넣기"],["pcmenu","🧭","PC 메뉴 열기",drawPcMenu,"PC 모든 메뉴"],["settings","⚙","설정",drawSettings,"PC 주소 · 키"]];
 const NARROW=["home","cardnews","upload","revenue"];
 const isWide=()=>window.innerWidth>=700;

@@ -42,6 +42,7 @@ label{font-size:13px;color:var(--muted)}
 .picker{position:relative;display:block;padding:14px 12px;border:1px dashed var(--line);border-radius:10px;text-align:center;background:var(--chip);font-weight:600}
 .picker input{position:absolute;opacity:0;width:1px;height:1px;left:0;top:0}
 .shot{display:block;width:100%;border-radius:10px;border:1px solid var(--line);background:#F7F2EB}
+.part{margin-top:12px;border-top:1px solid rgba(127,127,127,.25);padding-top:10px}.part .row{align-items:center}
 .desc{white-space:pre-wrap;font-size:14px;background:var(--bg);border-radius:10px;padding:10px;margin:8px 0}
 .prog{font-size:14px;margin:6px 0}
 .bar{height:8px;border-radius:99px;background:var(--chip);overflow:hidden;margin:8px 0}
@@ -196,25 +197,25 @@ const ART={
  ref:"art: 그 칸을 보여 주는 귀여운 그림 한 개의 설명(영어, 20단어 이내). 그림 종류는 레퍼런스를 따릅니다: 음식·물건이면 그 음식·물건(일본판으로 바꾼 항목이면 바꾼 것)을, 사람이면 사람('boy'/'girl'), 동물이면 동물. 레퍼런스에 없는 고양이·강아지를 일부러 넣지 않습니다."};
 const HINT={cat:" All {n} characters are cute chibi kittens (no humans), each with a different fur color or pattern.",dog:" All {n} characters are cute chibi puppies of different breeds (no humans).",animals:" All {n} characters are cute chibi animals of various kinds (no humans).",human:"",ref:""};
 const STYLE="Style: super cute kawaii chibi characters, big round heads (about 2.5-head-tall proportions), large sparkly round eyes, rosy blush cheeks, soft rounded shapes, clean bold black outlines, bright pastel-but-clear flat colors, like popular Japanese LINE stickers.";
-const CARD_SCHEMA={type:"object",additionalProperties:false,required:["kind","topic_ko","title_red","title_tail","title_ko","badge","items","caption","caption_ko","hashtags","comment","comment_ko","poll_q","poll_opts"],properties:{
+const CARD_SCHEMA={type:"object",additionalProperties:false,required:["kind","topic_ko","title_red","title_tail","title_ko","badge","items","caption","caption_ko","hashtags","comment","comment_ko","comment_read","poll_q","poll_opts","poll_ko"],properties:{
  kind:{type:"string",enum:["month","zodiac","eto","choice"]},topic_ko:{type:"string"},title_red:{type:"string"},title_tail:{type:"string"},title_ko:{type:"string"},
  badge:{type:"string",enum:["位","番",""]},
  items:{type:"array",items:{type:"object",additionalProperties:false,required:["subject","line1","ko1","art"],properties:{subject:{type:"string"},line1:{type:"string"},ko1:{type:"string"},art:{type:"string"}}}},
- caption:{type:"string"},caption_ko:{type:"string"},hashtags:{type:"array",items:{type:"string"}},comment:{type:"string"},comment_ko:{type:"string"},poll_q:{type:"string"},poll_opts:{type:"array",items:{type:"string"}}}};
+ caption:{type:"string"},caption_ko:{type:"string"},hashtags:{type:"array",items:{type:"string"}},comment:{type:"string"},comment_ko:{type:"string"},comment_read:{type:"string"},poll_q:{type:"string"},poll_opts:{type:"array",items:{type:"string"}},poll_ko:{type:"string"}}};
 const COMMON=`[제목] 이미지 맨 위에 아주 굵고 큰 후킹 제목 하나. title_red(빨강) + title_tail(검정)을 이어 읽으면 한눈에 들어오는 제목, 합쳐 전각 14자 이내. 설명조 말고 손이 멈추는 짧고 센 말로, 주제가 다 들어가게.
 순위형: title_red는 〇〇(전각 10자 이내, 예: お金が貯まらない), title_tail은 生まれ月ランキング/星座ランキング/干支ランキング. choice: title_red에 주제(예: ケチャップの量), title_tail에 何番派？/はどれ？/ランキング.
 [칸] 칸 글은 짧은 한마디 한 줄만: line1 전각 9자 이내. 읽자마자 웃기거나 '있다 있어' 하는 핵심 하나만. 순위형 subject는 1月~12月(또는 별자리·띠)을 한 번씩, 1위가 주제에 가장 들어맞는 항목. choice는 subject가 보기 이름(전각 8자 이내).
 line1은 일본어 です・ます체 부드러운 존댓말(반말 금지). 「〜派です」「〜しがち」처럼 짧게 끊어도 됩니다. 일본 사람이 공감하는 일상 소재(LINE 既読, 推し活, コンビニ, 飲み会, お弁当 등). 심한 비하·차별·외모 비하·성적인 내용·실존 인물/브랜드·건강 효과 단정은 쓰지 않습니다. ko1은 line1의 한국어 뜻.
 [캡션] caption(일본어): 순위형은 「1位は…まさかのあの月？」+이모지 / 「自分と家族・友だちの生まれ月をチェックしてみてください！」 / 「当たってたら「わかる」、納得いかない人は「異議あり」でコメントしてくださいね🫶」 흐름(별자리·띠는 맞게 바꿈). choice는 【12択】+질문+이모지 / 고른 번호로 성격을 알 수 있다는 말 / 「コメントで番号を教えてください🫶」. 요즘 일본 SNS 말투, 짧은 줄, 이모지 적당히. caption_ko는 한국어 뜻.
 첫 줄에는 일본에서 실제로 많이 검색하는 일본어 키워드 3~5개가 자연스럽게 들어가게. hashtags는 그 키워드 위주 3~5개(# 포함).
-[고정댓글] comment: 일본어 2줄 이내, A/B·번호·이모지로 바로 답하고 싶어지는 질문 또는 あるある 유도, 결과 스포일러 금지. comment_ko는 한국어 뜻.
-[투표] poll_q: 인스타 투표 스티커 질문(일본어 전각 20자 이내), poll_opts: 보기 2~4개(각 전각 10자 이내).`;
+[고정댓글] comment: 일본어 2줄 이내, A/B·번호·이모지로 바로 답하고 싶어지는 질문 또는 あるある 유도, 결과 스포일러 금지. comment_ko는 한국어 뜻, comment_read는 comment의 한글 독음(한글만, 일본어 글자를 섞지 않음).
+[투표] poll_q: 인스타 투표 스티커 질문(일본어 전각 20자 이내), poll_opts: 보기 2~4개(각 전각 10자 이내). poll_ko: 질문과 보기의 한국어 뜻을 한 줄씩(한글만).`;
 // ---- 링크형 '모양'(PC 0.7.44와 같게): original = 원본 모양 그대로(글 목록이면 9:16 list 틀), cards = 카드 칸형 ----
 const LIST_MAX=12,LIST_W=1080,LIST_H=1920,LIST_TOP=292,LIST_RIGHT=904,LIST_CLOSING_Y=1404;
 const LIST_THEMES={dark:{bg:"#000000",ink:"#FFFFFF",hl:"#F7D548",tag:"#F7D548",tag_ink:"#111111",amount:"#7FDEA5",arrow:"#8F8F8F",sub:"#B9B9B9",account:"#8A8A8A"},
  light:{bg:"#FFFFFF",ink:"#1E1E1E",hl:"#E33539",tag:"#F7D548",tag_ink:"#111111",amount:"#13985A",arrow:"#9A9A9A",sub:"#707070",account:"#9A948E"}};
 const LIST_KEYS=["title_small","title_mid","closing","closing_hl","closing_ko","closing_read","mascot"];
-function cardSchema(lists){const sc=JSON.parse(JSON.stringify(CARD_SCHEMA));if(!lists)return sc;
+function cardSchema(lists,judge){const sc=JSON.parse(JSON.stringify(CARD_SCHEMA));if(judge){sc.properties.plan_layout={type:"string",enum:["original","cards"]};sc.properties.plan_ko={type:"string"};sc.required.push("plan_layout","plan_ko")}if(!lists)return sc;
  sc.properties.kind.enum.push("list");for(const k of LIST_KEYS)sc.properties[k]={type:"string"};sc.properties.theme={type:"string",enum:["dark","light"]};
  sc.required.push(...LIST_KEYS,"theme");const it=sc.properties.items.items;it.properties.line2={type:"string"};it.required.push("line2");
  sc.properties.kind.enum.push("rows");for(const k of ROWS_TEXT_KEYS)sc.properties[k]={type:"string"};
@@ -234,6 +235,10 @@ function hintCuts(text){const cuts=new Set();for(const h of HINTS){const clean=h
 const LIST_RULE=`- list(원본 모양 그대로): 그림 칸 없이 ①②③… 번호 줄이 위에서 아래로 늘어선 글 목록 게시물(예: 「① 5억 받기 → 평생 TV 못 봄」 「① 1000万円 → 一生コンビニ禁止」). 폰 화면에 꽉 차는 9:16 한 장으로 그립니다. items는 원본 줄 순서·수 그대로(2~${LIST_MAX}줄): subject = 화살표 왼쪽(금액·조건 등, 전각 6자 이내, 원본에 왼쪽이 없으면 빈칸 ""), line1 = 화살표 오른쪽 본문(전각 11자 이내, 짧고 세게), line2 = 원본에서 그 줄 밑에 작게 붙은 덧붙임(예: (電話はOK))이 있을 때만 괄호째 짧게(전각 10자 이내), 없으면 빈칸. ko1은 line1의 한국어 뜻. art는 빈칸. badge는 ''. 제목: title_small = 제목 위 노란 꼬리표(예: 究極の選択, 전각 6자 이내), title_mid + title_red + title_tail을 이어 읽으면 큰 제목 전체(합쳐 전각 26자 이내, 예: お金もらう代わりに一生 + これ禁止 + ならどれ選ぶ？), title_red는 노란색으로 강조할 핵심 말(전각 6자 이내). closing = 맨 아래 한 줄 댓글 유도(예: あなたは何番？コメントで教えて▼, 전각 20자 이내), closing_hl = closing 안에서 강조할 말(예: 何番), closing_ko·closing_read = closing의 한국어 뜻·한글 독음. mascot = 오른쪽 위에 들어갈 귀여운 치비 캐릭터 그림 하나의 설명(영어, 20단어 이내, 주제에 어울리는 동물이나 사람이 주제 소품과 함께). theme = 원본 배경이 어두우면 dark, 밝으면 light. list가 아니면 title_small·title_mid·closing·closing_hl·closing_ko·closing_read·mascot·line2는 빈칸, theme은 dark.`;
 const LAYOUT_RULES={original:"모양은 원본형입니다(에이스 2026-11-08 '원본 유지하되 일본어로 현지화 번역만'): 원본의 생김새(줄·칸 구성, 기호, 이름표 자리, 줄 수)를 그대로 두고 글만 일본어로 바꿉니다. 글로만 된 번호 목록이면 list, 그림(또는 글)이 줄마다 가로로 늘어선 것(그림 + 그림 = 그림, 그림 → 설명, 그림 옆 설명 등)이면 rows로 하고, 칸 격자로 바꾸지 않습니다. 원본이 정말로 칸마다 테두리·번호가 있는 카드 격자일 때만 choice(순위면 month·zodiac·eto)입니다. 헷갈리면 rows입니다.",
  cards:"모양은 표칸형입니다(에이스가 고름): 원본이 글로 된 번호 목록이나 그림 줄이어도 list·rows를 쓰지 않고, 줄마다 그림이 들어간 칸(choice, badge는 '番')으로 바꿉니다. 이때 subject는 화살표 왼쪽(금액 등, 전각 8자 이내), line1은 오른쪽 본문을 짧게 줄인 말입니다."};
+// 🤖 알아서(PC 0.7.49, 에이스 2026-11-08 '이 게시물은 어떤 걸로 어떻게 바꾸면 잘될지 알아서 판단해서'): AI가 원본형·표칸형 중 고르고 이유도
+LAYOUT_RULES.judge="모양은 AI가 고릅니다: 원본형을 먼저 생각합니다. 원본 생김새(글 목록·그림 줄·카드 격자)가 일본에서도 그대로 잘 읽히면 원본형(plan_layout original — "+LAYOUT_RULES.original+") 글로만 된 목록인데 항목마다 그림이 있어야 한눈에 들어오고 반응이 더 좋겠다고 판단될 때만 표칸형(plan_layout cards — "+LAYOUT_RULES.cards+" 표칸형이면 kind는 list·rows가 아니라 choice(순위면 month·zodiac·eto)입니다.)";
+const PLAN_RULE="[알아서 판단 — plan_ko] 이 게시물이 왜 반응이 좋았을지, 일본에서 그대로 통하는지, 최근에 만든 것과 겹치는지를 보고 원본형·표칸형 중 더 잘될 것을 plan_layout에 original 또는 cards로 적고, plan_ko에는 한국어 2~4줄로 '모양: …(이유)' '바꾼 점: …'을 적습니다.";
+function layoutPick(){const v=S("layout");return v==="cards"||v==="judge"?v:"original"}
 // 한국어 한자 변환에서 온 호환용 한자·부수 글자는 일본어 글꼴에 없어 □로 나온다(에이스 카드 「お☒」) → 보통 한자로
 const COMPAT_CJK=/[\u2e80-\u2eff\u2f00-\u2fdf\uf900-\ufaff]|[\u{2f800}-\u{2fa1f}]/gu,INVISIBLE=/[\u200b-\u200d\u2060\ufeff\ufe00-\ufe0f]/g;
 function fixCJK(v){if(typeof v==="string")return v.replace(INVISIBLE,"").replace(COMPAT_CJK,m=>m.normalize("NFKC"));if(Array.isArray(v))return v.map(fixCJK);
@@ -350,11 +355,40 @@ async function renderRows(c,sheetSrc,account){
   if(at>=0)for(let k=at;k<at+c.closing_hl.length;k++)marks[k]=th.hl;putCenter(cx,closingY,c.closing,cp,marks)}
  if(account){const hd=account.startsWith("@")?account:"@"+account;put(right-width(hd,26,false),(closingY||LIST_CLOSING_Y)+74,hd,26,th.account,false)}
  return cv.toDataURL("image/png")}
+// 칸형(순위·고르기)은 릴스용 9:16을 따로(PC 0.7.47 card_reel.png): 3:4 카드를 9:16 가운데에 넣으면 위아래가 비어 보였다
+// (에이스 2026-11-08 '릴스에서 잘 보이게 빈 공간 없이 꽉 차게'). 글 목록·그림 줄은 원래 9:16.
+async function reelImage(c,src){if(c.kind==="list"||c.kind==="rows"||!src)return null;HINTS=c.breaks||[];try{return await renderCard(c,src,S("account"),true)}finally{HINTS=[]}}
 async function render(c,src,account){HINTS=c.breaks||[];try{return c.kind==="list"?await renderList(c,src,account):c.kind==="rows"?await renderRows(c,src,account):await renderCard(c,src,account)}finally{HINTS=[]}}
 function artJob(c,ch,progress){if(c.kind==="list")return kie(mascotPrompt(c),"1:1",progress);if(c.kind==="rows"){const[cols,rows]=rowsGrid(c);return kie(rowsSheetPrompt(c,ch),aspectFor(cols,rows),progress)}const[cols,rows]=grid(c.items.length);return kie(sheetPrompt(c,ch),cols===4&&rows===3?"4:3":aspectFor(cols,rows),progress)}
 function nextChar(){const i=Number(S("char_i")||0);N.set("char_i",String(i+1));return CHAR_CYCLE[i%CHAR_CYCLE.length]}
 function history(){return SJ("history",[])}
-function remember(c){const hs=history();hs.push({title:(c.title_mid||"")+c.title_red+c.title_tail,topic:c.topic_ko,at:new Date().toISOString().slice(0,10)});setJ("history",hs.slice(-100))}
+function remember(c){const hs=history();hs.push({title:(c.title_mid||"")+c.title_red+c.title_tail,topic:c.topic_ko,at:new Date().toISOString().slice(0,10)});setJ("history",hs.slice(-100));
+ const made=SJ("made",[]);made.push({id:Date.now().toString(36),title:(c.title_mid||"")+(c.title_red||"")+(c.title_tail||""),by:c.made_by||"random",at:new Date().toISOString().slice(0,10),auto_from:c.auto_from||"",cards:compactCards(c)});setJ("made",made.slice(-30))}
+// 🤖 알아서 자동(PC 0.7.49, 에이스 2026-11-08 '그 만든 걸 바탕으로 아무것도 안 줘도 자동생성'): 이 폰에서 만든 것 중 링크형·알아서로 만든 것(없으면 전부)에서
+// 최근 것부터, 방금 바탕으로 쓴 것은 다음 5번 동안 뒤로. 틀·모양·칸 수·장치는 그대로, 주제는 새로.
+const AUTO_SPACING=5;
+function compactCards(c){const keep={};for(const k of ["kind","title_small","title_mid","title_red","title_tail","title_ko","badge","subtitle","closing","theme","row_cols","row_pics","row_ops","numbered","topic_ko"])if(c[k]!=null&&c[k]!=="")keep[k]=c[k];
+ keep.items=(c.items||[]).map(x=>({subject:x.subject||"",line1:x.line1||"",line2:x.line2||"",ko1:x.ko1||""}));keep.caption=(c.caption||"").slice(0,300);return keep}
+function autoBase(){const made=SJ("made",[]).filter(x=>x&&x.cards&&(x.cards.items||[]).length);if(!made.length)return null;
+ const good=made.filter(x=>x.by==="link"||x.by==="auto");const pool=(good.length?good:made).slice().reverse();
+ const used=made.filter(x=>x.by==="auto").slice(-AUTO_SPACING).map(x=>x.auto_from);pool.sort((a,b)=>(used.includes(a.id)?1:0)-(used.includes(b.id)?1:0));return pool[0]}
+function autoPrompt(base){const b=base.cards,n=b.items.length;const recent=history().slice(-40).map(x=>"- "+x.title+" ("+x.topic+")").join("\n");
+ const lines=b.items.map((x,i)=>`${i+1}. ${x.subject}${x.line1?" — "+x.line1:""}${x.line2?" "+x.line2:""}${x.ko1?" ("+x.ko1+")":""}`).join("\n");
+ const shape=b.kind==="rows"?`rows — 한 줄 ${b.row_cols}칸(${(b.row_pics||[]).join(", ")}), 칸 사이 기호 ${JSON.stringify(b.row_ops||[])}, ${Math.floor(n/(b.row_cols||1))}줄`:b.kind==="list"?`list — 글 목록 ${n}줄`:`${b.kind} — ${n}칸`;
+ return `우리 계정에서 전에 만든 일본 인스타 카드뉴스예요. 이걸 바탕으로 주제만 새로 바꾼 새 게시물 문구를 써 주세요(에이스 2026-11-08 '그 만든 걸 바탕으로 아무것도 안 줘도 자동생성').
+[바탕 게시물] 틀: ${shape}
+제목: ${(b.title_small?"["+b.title_small+"] ":"")+(b.title_mid||"")+(b.title_red||"")+(b.title_tail||"")}${b.title_ko?" ("+b.title_ko+")":""}
+${b.subtitle?"부제: "+b.subtitle+"\n":""}칸:
+${lines}
+${b.closing?"맺음말: "+b.closing+"\n":""}
+- 틀(kind는 ${b.kind} 그대로)·모양·칸 수(${n}개${b.kind==="rows"?", 줄·칸·기호 구성도 그대로":""})·장치(번호 고르기, 순위, 조합 공식 등)·theme(${b.theme||"그대로"})는 그대로 두고 주제는 새로 바꿉니다. 바탕 게시물의 문장·소재는 쓰지 않고, 일본 사람이 바로 '있다 있어' 하는 일상 소재로.
+${recent?"[최근에 만든 것 — 주제·제목이 겹치면 안 됨]\n"+recent+"\n":""}- badge: 순위면 '位', 번호 고르기면 '番', 번호가 없으면 ''.
+- ${LAYOUT_RULES.original}
+${LIST_RULE}
+${ROWS_RULE}
+${BREAK_RULE}
+${COMMON.replace("【12択】","【N択】")}
+- ${ART.ref}`}
 function randomPrompt(topic,ch){const recent=history().slice(-40).map(x=>"- "+x.title+" ("+x.topic+")").join("\n");
  return `일본 인스타그램(@huh_archive.jp 같은 계정)에서 반응이 좋은 '한 장짜리 12칸 이미지' 게시물의 문구를 새로 써 주세요.
 [틀(kind)] month: 생일 달 순위(subject 1月~12月), zodiac: 별자리 순위(subject ${ZODIAC.join("・")}), eto: 띠 순위(subject ${ETO.join("・")}), choice: 12개 보기 중 하나 고르기(예: 「フライドポテトのケチャップ、あなたは何番派？」). badge는 순위형 '位', choice '番'.
@@ -366,7 +400,7 @@ items는 정확히 12개.
 function linkPrompt(url,memo,n,layout){const lists=layout!=="cards";return `아래 레퍼런스(일본 또는 한국 인스타 '한 장짜리 여러 칸 이미지' 게시물 캡처${url?", 링크 "+url:""}${memo?", 메모: "+memo:""})의 틀을 그대로 살려 일본판 새 게시물 문구를 써 주세요.
 - 레퍼런스의 주제·제목의 뜻과 칸 구성, 칸 수(그대로 ${n?n+"개":"원본 칸 수, 2~20"}), 칸마다의 핵심(어떤 타입·순위·성격인지)은 그대로 살립니다. 다만 직역하지 말고 문장·예시·소재는 일본 사람이 읽고 바로 '있다 있어' 하게 일본 정서·일상에 맞게 자연스럽게 바꿉니다(예: 감자튀김 케첩 찍는 양 → お寿司の醤油 찍는 양). 레퍼런스 문장을 그대로 베끼지 않습니다.
 - kind: 생일 달/별자리/띠 순위면 month/zodiac/eto${lists?", 그림 칸 없이 글로 된 번호 목록이면 list, 그림이 줄마다 늘어선 것이면 rows":""}, 그 밖은 choice. badge: 순위면 '位', 번호 고르기면 '番', 번호가 없으면 ''.
-- ${LAYOUT_RULES[lists?"original":"cards"]}
+- ${LAYOUT_RULES[layout==="judge"?"judge":lists?"original":"cards"]}${layout==="judge"?"\n"+PLAN_RULE:""}
 ${lists?LIST_RULE+"\n"+ROWS_RULE+"\n":""}${BREAK_RULE}
 ${COMMON.replace("【12択】","【N択】")}
 - ${ART.ref}`}
@@ -413,26 +447,34 @@ function cellArt(sheet,r,c,cols,rows){const cw=sheet.naturalWidth/cols,ch=sheet.
  return{canvas:t,x:x0,y:y0,w:x1-x0+1,h:y1-y0+1}}
 function rr(g,x,y,w,hh,r){g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+hh,r);g.arcTo(x+w,y+hh,x,y+hh,r);g.arcTo(x,y+hh,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath()}
 function fit(g,text,px,maxW,weight){let p=px;while(p>10){g.font=`${weight} ${p}px ${FONT}`;if(g.measureText(text).width<=maxW)break;p--}return p}
-async function renderCard(c,sheetSrc,account){
- const cv=$("#cv");cv.width=W;cv.height=H;const g=cv.getContext("2d");g.fillStyle=BG;g.fillRect(0,0,W,H);g.textBaseline="top";
+// 칸 이름을 모두 같은 글자 크기로: 한 줄에 안 들어가면 줄이지 않고 문절 경계(AI ｜ 표시 먼저)에서 두 줄로(PC 0.7.47 fit_labels)
+function fitLabels(g,texts,hi,lo,maxW){const at=(t,px,limit)=>{g.font=`900 ${px}px ${FONT}`;const m=s=>g.measureText(s).width;if(!t||m(t)<=maxW)return t?[t]:[];
+  const[lines]=wrapText(t,m,maxW);if(lines.length>limit||lines.some(l=>m(l)>maxW))return null;const bc=breakCosts(t),cuts=HINTS.length?hintCuts(t):null;let pos=0;
+  for(const l of lines.slice(0,-1)){pos+=l.length;if(bc[pos]>=3&&!(cuts&&cuts.has(pos)))return null}/* 낱말 한가운데서는 안 끊는다 */return lines};
+ for(let px=hi;px>=lo;px--){const out=texts.map(t=>at(t,px,2));if(out.every(o=>o))return[px,out]}
+ return[lo,texts.map(t=>at(t,lo,2)||at(t,lo,3)||[t])]}
+async function renderCard(c,sheetSrc,account,reel){const HH=reel?1920:H;
+ const cv=$("#cv");cv.width=W;cv.height=HH;const g=cv.getContext("2d");g.fillStyle=BG;g.fillRect(0,0,W,HH);g.textBaseline="top";
  const red=c.title_red||"",tail=c.title_tail||"",maxW=W-2*SIDE;
  // 제목: 한 줄에 들어가면 한 줄(최대 96px), 아니면 빨강 / 검정 두 줄
- let titleBottom;g.font=`900 96px ${FONT}`;
- const one=fit(g,red+tail,96,maxW,900);
- if(one>=66){g.font=`900 ${one}px ${FONT}`;const wr=g.measureText(red).width,wt=g.measureText(tail).width,x=(W-wr-wt)/2,y=64;
+ let titleBottom;const T=reel?{one:148,y1:150,a:120,b:104,y2:150}:{one:96,y1:64,a:92,b:80,y2:50};g.font=`900 ${T.one}px ${FONT}`;
+ const one=fit(g,red+tail,T.one,maxW,900);
+ if(one>=66){g.font=`900 ${one}px ${FONT}`;const wr=g.measureText(red).width,wt=g.measureText(tail).width,x=(W-wr-wt)/2,y=T.y1;
    g.fillStyle="#E33539";g.fillText(red,x,y);g.fillStyle="#222";g.fillText(tail,x+wr,y);titleBottom=y+one*1.12}
- else{const p1=Math.min(92,fit(g,red,92,maxW,900)),p2=Math.min(80,fit(g,tail,80,maxW,900));let y=50;
+ else{const p1=Math.min(T.a,fit(g,red,T.a,maxW,900)),p2=Math.min(T.b,fit(g,tail,T.b,maxW,900));let y=T.y2;
    g.font=`900 ${p1}px ${FONT}`;g.fillStyle="#E33539";g.fillText(red,(W-g.measureText(red).width)/2,y);y+=p1*1.12;
    g.font=`900 ${p2}px ${FONT}`;g.fillStyle="#222";g.fillText(tail,(W-g.measureText(tail).width)/2,y);titleBottom=y+p2*1.12}
  const sheet=sheetSrc?await loadImg(sheetSrc):null;
- const n=c.items.length,[cols,rows]=grid(n),gap=10,mx=SIDE,top=Math.max(180,Math.round(titleBottom+40));
- const cw=(W-2*mx-(cols-1)*gap)/cols,ch=(H-top-70-(rows-1)*gap)/rows;
+ const n=c.items.length,[cols,rows]=grid(n),gap=10,mx=SIDE,top=reel?Math.max(300,Math.round(titleBottom+50)):Math.max(180,Math.round(titleBottom+40));
+ const cw=(W-2*mx-(cols-1)*gap)/cols,ch=((reel?1760:H-70)-top-(rows-1)*gap)/rows;
  const f=Math.max(.6,Math.min(1.5,cw/204.5,ch/356)),bf=Math.max(.75,Math.min(1.3,f));
+ const namePx=Math.max(20,Math.round(32*f*1.12)),[lp,labelLines]=fitLabels(g,c.items.map(it=>it.subject+(c.suffix||"")),namePx,Math.max(16,Math.round(namePx*.72)),cw-12);
+ const rowLines=[...Array(rows)].map((_,r)=>Math.max(1,...labelLines.slice(r*cols,r*cols+cols).map(l=>l.length)));
  c.items.forEach((it,i)=>{const r=Math.floor(i/cols),cc=i%cols,inRow=Math.min(cols,n-r*cols);
   const x0=mx+(cols-inRow)*(cw+gap)/2+cc*(cw+gap),y0=top+r*(ch+gap),color=COLORS[i%COLORS.length];
   rr(g,x0,y0,cw,ch,18);g.fillStyle="#fff";g.fill();g.lineWidth=4;g.strokeStyle=color;g.stroke();
-  const label=it.subject+(c.suffix||""),namePx=Math.max(20,Math.round(32*f*1.12)),linePx=Math.max(15,Math.round(23*f));
-  const textH=namePx*1.25+(it.line1?8+linePx*1.34:0),areaTop=y0+40*bf,areaBottom=y0+ch-16*f;let textTop=areaBottom-textH;
+  const lines=labelLines[i],nl=rowLines[r],linePx=Math.max(15,Math.round(23*f)),labelH=lp*1.25+(nl-1)*lp*1.12;
+  const textH=labelH+(it.line1?8+linePx*1.34:0),areaTop=y0+40*bf,areaBottom=y0+ch-16*f;let textTop=areaBottom-textH;
   if(sheet){const a=cellArt(sheet,r,cc,cols,rows);const bw=cw-14,bh=Math.max(20,textTop-8-areaTop);const k=Math.min(bw/a.w,bh/a.h);const dw=a.w*k,dh=a.h*k;
    const group=dh+8+textH,picY=areaTop+Math.max(0,(areaBottom-areaTop-group)/2);g.drawImage(a.canvas,a.x,a.y,a.w,a.h,x0+cw/2-dw/2,picY,dw,dh);textTop=picY+dh+8}
   // 순위 배지
@@ -440,9 +482,9 @@ async function renderCard(c,sheetSrc,account){
    g.font=`900 ${Math.round(27*bf)}px ${FONT}`;const wn=g.measureText(big).width;g.font=`700 ${Math.round(15*bf)}px ${FONT}`;const ws=g.measureText(tiny).width;
    const bx=x0+9+30*bf-(wn+ws)/2;g.fillStyle="#fff";g.font=`900 ${Math.round(27*bf)}px ${FONT}`;g.fillText(big,bx,y0+9+5*bf);
    if(tiny){g.font=`700 ${Math.round(15*bf)}px ${FONT}`;g.fillText(tiny,bx+wn,y0+9+19*bf)}}
-  let p=fit(g,label,namePx,cw-12,900);g.font=`900 ${p}px ${FONT}`;g.fillStyle=color;g.fillText(label,x0+cw/2-g.measureText(label).width/2,textTop);
-  if(it.line1){p=fit(g,it.line1,linePx,cw-12,500);g.font=`500 ${p}px ${FONT}`;g.fillStyle="#222";g.fillText(it.line1,x0+cw/2-g.measureText(it.line1).width/2,textTop+namePx*1.25+8)}});
- if(account){const hd=account.startsWith("@")?account:"@"+account;g.font=`400 20px ${FONT}`;g.fillStyle="#9A948E";g.fillText(hd,W/2-g.measureText(hd).width/2,H-50)}
+  let ly=textTop+(nl-lines.length)*lp*1.12/2;g.fillStyle=color;for(const ln of lines){const p=fit(g,ln,lp,cw-12,900);g.font=`900 ${p}px ${FONT}`;g.fillText(ln,x0+cw/2-g.measureText(ln).width/2,ly);ly+=lp*1.12}
+  if(it.line1){const p=fit(g,it.line1,linePx,cw-12,500);g.font=`500 ${p}px ${FONT}`;g.fillStyle="#222";g.fillText(it.line1,x0+cw/2-g.measureText(it.line1).width/2,textTop+labelH+8)}});
+ if(account){const hd=account.startsWith("@")?account:"@"+account;g.font=`400 ${reel?24:20}px ${FONT}`;g.fillStyle="#9A948E";g.fillText(hd,W/2-g.measureText(hd).width/2,reel?1812:H-50)}
  return cv.toDataURL("image/png")}
 
 // ---- 카드뉴스 만들기 ----
@@ -450,26 +492,32 @@ function captionText(c){return (c.caption||"").trim()+(c.hashtags.length?"\n\n"+
 async function makeCards(){if(CS.busy)return;CS.busy=true;const mode=CS.mode;let step="";
  const progress=t=>{step=t;const e=$("#prog");if(e)e.textContent=t};drawCardnews();
  try{let c,ch;
+  let base=null;if(mode==="auto")base=autoBase();
   if(mode==="link"){if(!CS.shots.length&&!CS.linkUrl.trim()&&!($("#memo")||{}).value)throw new Error("캡처나 링크, 메모 중 하나는 넣어 주세요.");
    progress("✍️ Claude가 레퍼런스를 보고 일본어 문구를 쓰는 중… (40초쯤)");ch="ref";
-   const layout=S("layout")==="cards"?"cards":"original",lists=layout==="original";
+   const layout=layoutPick(),lists=layout!=="cards",judge=layout==="judge";
    const content=[...CS.shots.map(s=>({type:"image",source:{type:"base64",media_type:"image/jpeg",data:s.split(",")[1]}})),{type:"text",text:linkPrompt(CS.linkUrl,CS.memo||"",0,layout)}];
-   c=cleanCards(await claude(content,cardSchema(lists),12000),20,lists)}
+   const data=await claude(content,cardSchema(lists,judge),12000);const asCards=judge&&data.plan_layout==="cards";
+   c=cleanCards(data,20,lists&&!asCards);if(judge){c.plan_layout=asCards?"cards":"original";c.plan_ko=String(data.plan_ko||"").trim().slice(0,600)}}
+  else if(base){ch="ref";progress("🤖 전에 만든 「"+base.title+"」을 바탕으로 새 주제를 쓰는 중… (40초쯤)");
+   c=cleanCards(await claude([{type:"text",text:autoPrompt(base)}],cardSchema(true),12000),20,true);
+   c.auto_from=base.id;c.plan_ko="바탕: 「"+base.title+"」 — 틀·모양·칸 수·장치는 그대로, 주제는 새로"}
   else{ch=nextChar();progress("✍️ Claude가 틀·주제를 고르고 일본어 문구 12개를 쓰는 중… (30초쯤)");
-   c=cleanCards(await claude([{type:"text",text:randomPrompt(CS.topic||"",ch)}],CARD_SCHEMA),12);
-   if(c.kind==="month")c.items.forEach((x,i)=>{if(!/月$/.test(x.subject))x.subject=MONTHS[i]})}
+   c=cleanCards(await claude([{type:"text",text:randomPrompt(mode==="auto"?"":CS.topic||"",ch)}],CARD_SCHEMA),12);
+   if(mode==="auto")c.auto_note="🤖 아직 이 폰에서 만든 카드뉴스가 없어서 랜덤으로 만들었어요."}
+  if(c.kind==="month")c.items.forEach((x,i)=>{if(!/月$/.test(x.subject))x.subject=MONTHS[i]});c.made_by=mode;
   progress("🖼 문구 미리 보기를 그리는 중…");CS.reelFile=null;CS.result={cards:c,char:ch,png:await render(c,null,S("account")),sheet:null,at:Date.now()};drawCardnews();
   const sheet=await artJob(c,ch,progress);
-  progress("🖼 카드를 그리는 중…");CS.result.sheet=sheet;CS.result.png=await render(c,sheet,S("account"));remember(c);
+  progress("🖼 카드를 그리는 중…");CS.result.sheet=sheet;CS.result.png=await render(c,sheet,S("account"));CS.result.reelPng=await reelImage(c,sheet);remember(c);
   const name=fileBase(c)+".png";const where=N.save(name,"image/png",CS.result.png.split(",")[1]);CS.result.saved=name;progress("");toast("✅ 다 만들었어요. "+where)}
  catch(e){CS.error=e.message||String(e);toast(CS.error)}finally{CS.busy=false;drawCardnews()}}
 function fileBase(c){const d=new Date();const p=n=>String(n).padStart(2,"0");return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}_${(c.title_red||"card").replace(/[\\/:*?"<>|\s]/g,"").slice(0,16)}`}
 async function redraw(){const r=CS.result;if(!r||CS.busy)return;CS.busy=true;drawCardnews();
  try{r.sheet=await artJob(r.cards,r.char,t=>{const e=$("#prog");if(e)e.textContent=t});
-  CS.reelFile=null;r.png=await render(r.cards,r.sheet,S("account"));N.save(fileBase(r.cards)+".png","image/png",r.png.split(",")[1]);toast("그림을 다시 그렸어요")}
+  CS.reelFile=null;r.png=await render(r.cards,r.sheet,S("account"));r.reelPng=await reelImage(r.cards,r.sheet);N.save(fileBase(r.cards)+".png","image/png",r.png.split(",")[1]);toast("그림을 다시 그렸어요")}
  catch(e){toast(e.message)}finally{CS.busy=false;drawCardnews()}}
 async function reel(share){const r=CS.result;if(!r)return;N.copy(captionText(r.cards));toast("🎬 8초 릴스를 만드는 중… (10~30초)");
- const res=await native("makeReel",fileBase(r.cards)+".mp4",r.png.split(",")[1],!!share);if(res.ok&&res.web){drawCardnews();toast("🎬 릴스가 다 됐어요. ‘📤 릴스 저장·공유’를 눌러 주세요");return}
+ const res=await native("makeReel",fileBase(r.cards)+".mp4",(r.reelPng||r.png).split(",")[1],!!share);if(res.ok&&res.web){drawCardnews();toast("🎬 릴스가 다 됐어요. ‘📤 릴스 저장·공유’를 눌러 주세요");return}
  toast(res.ok?"🎬 릴스를 저장했어요"+(IOS?"(사진 앱)":"(다운로드/CreatorStudio)"):"릴스를 못 만들었어요: "+res.error)}
 async function telegram(){const r=CS.result,tok=S("telegram_token"),chat=S("telegram_chat");if(!tok||!chat){toast("⚙ 설정에서 텔레그램을 넣거나 PC에서 가져와 주세요");return}
  toast("✈️ 텔레그램으로 보내는 중…");const base="https://api.telegram.org/bot"+tok;const b64=s=>btoa(unescape(encodeURIComponent(s)));const name=fileBase(r.cards);
@@ -480,25 +528,27 @@ async function telegram(){const r=CS.result,tok=S("telegram_token"),chat=S("tele
   if(x.status!==200)throw new Error("텔레그램이 거절했어요("+x.status+")");toast("✈️ 텔레그램으로 보냈어요")}catch(e){toast(e.message)}}
 function shrink(file){return new Promise((ok,bad)=>{const img=new Image();img.onload=()=>{const k=Math.min(1,1568/Math.max(img.width,img.height));const c=document.createElement("canvas");c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(img.src);ok(c.toDataURL("image/jpeg",.85))};img.onerror=()=>bad(new Error("그림을 못 읽었어요"));img.src=URL.createObjectURL(file)})}
 function drawCardnews(){const ready=S("claude_key")&&S("kie_key");
- const seg=h("div",{class:"seg"},[["random","🎲 원클릭(랜덤)"],["link","🔗 링크형"]].map(([k,n])=>h("button",{class:k===CS.mode?"on":"",onclick:()=>{CS.mode=k;drawCardnews()}},n)));
+ const seg=h("div",{class:"seg"},[["random","🎲 원클릭"],["link","🔗 링크형"],["auto","🤖 알아서 자동"]].map(([k,n])=>h("button",{class:k===CS.mode?"on":"",onclick:()=>{CS.mode=k;drawCardnews()}},n)));
  let form;
  if(CS.mode==="link"){const files=h("input",{type:"file",accept:"image/*",multiple:true,onchange:async()=>{CS.shots=[];for(const f of [...files.files].slice(0,4))CS.shots.push(await shrink(f));drawCardnews()}});
   form=[h("label",{},"게시물 링크(선택) — 인스타에서 '공유 → Creator Studio'로 보내도 돼요"),h("input",{type:"url",value:CS.linkUrl,placeholder:"https://www.instagram.com/p/…",oninput:e=>CS.linkUrl=e.target.value}),
    h("label",{class:"picker"},files,h("span",{},CS.shots.length?`🖼 캡처 ${CS.shots.length}장 (다시 고르기)`:"🖼 게시물 캡처 고르기 (최대 4장, 꼭 넣어 주세요)")),
    CS.shots.length?h("div",{class:"thumbs"},CS.shots.map(s=>h("img",{src:s}))):null,
-   h("label",{},"모양"),h("div",{class:"seg"},[["original","📄 원본형"],["cards","🗂 표칸형"]].map(([k,n])=>h("button",{class:k===(S("layout")==="cards"?"cards":"original")?"on":"",onclick:()=>{N.set("layout",k);drawCardnews()}},n))),
-   h("p",{class:"muted"},S("layout")==="cards"?"그림 번호 칸으로 바꿔요.":"원본 생김새 그대로, 글만 일본어로 (글 목록·그림 줄은 폰 화면에 꽉 차는 9:16)"),
+   h("label",{},"모양"),h("div",{class:"seg"},[["original","📄 원본형"],["cards","🗂 표칸형"],["judge","🤖 알아서"]].map(([k,n])=>h("button",{class:k===layoutPick()?"on":"",onclick:()=>{N.set("layout",k);drawCardnews()}},n))),
+   h("p",{class:"muted"},{cards:"그림 번호 칸으로 바꿔요.",judge:"AI가 이 게시물에 맞게 원본형·표칸형 중 골라요(고른 이유도 보여 줘요)."}[layoutPick()]||"원본 생김새 그대로, 글만 일본어로 (글 목록·그림 줄은 폰 화면에 꽉 차는 9:16)"),
    h("textarea",{id:"memo",placeholder:"메모(선택): 왜 잘됐는지, 바꾸고 싶은 점",oninput:e=>CS.memo=e.target.value},CS.memo||"")]}
+ else if(CS.mode==="auto")form=[h("p",{class:"muted"},"🤖 입력 없이: 이 폰에서 만든 카드뉴스 중 링크형·알아서로 만든 것(없으면 최근 것)을 바탕으로 틀·모양·칸 수는 그대로, 주제만 새로 만들어요. 방금 바탕으로 쓴 건 다음 5번 동안 뒤로 미뤄요. 만든 게 없으면 랜덤으로 만들어요.")];
  else form=[h("input",{placeholder:"주제(비우면 AI가 틀·주제를 골라요)",value:CS.topic||"",oninput:e=>CS.topic=e.target.value})];
  const r=CS.result;
  put(h("div",{class:"card"},h("h2",{},"🗂 인스타 카드뉴스 ",h("span",{class:"tag"},"PC 없이")),seg,...form,
-   h("button",{class:"btn main full",disabled:CS.busy||!ready,onclick:makeCards},CS.busy?"⏳ 만드는 중…":CS.mode==="link"?"🔗 링크로 만들기":"✨ 원클릭 만들기"),
+   h("button",{class:"btn main full",disabled:CS.busy||!ready,onclick:makeCards},CS.busy?"⏳ 만드는 중…":CS.mode==="link"?"🔗 링크로 만들기":CS.mode==="auto"?"🤖 알아서 만들기":"✨ 원클릭 만들기"),
    CS.busy?h("div",{},h("div",{class:"prog",id:"prog"},""),h("div",{class:"bar"},h("i",{}))):null,
    !ready?h("p",{class:"muted"},"⚙ 설정에서 Claude·Kie 키를 넣거나, PC가 켜져 있을 때 'PC에서 가져오기'를 한 번 눌러 주세요."):h("p",{class:"muted"},"Claude가 문구를 쓰고 Kie(나노바나나 프로, 1장 약 18크레딧)가 그림을 그려요. 1~3분 걸려요."),
    CS.error&&!CS.busy?h("p",{style:"color:#fca5a5"},"⚠️ "+CS.error):null),
   r?resultCard(r):null)}
 function resultCard(r){const c=r.cards;const cap=captionText(c);
  return h("div",{class:"card"},h("div",{class:"row"},h("h2",{class:"grow"},(c.title_mid||"")+(c.title_red||"")+(c.title_tail||"")),h("span",{class:"muted"},c.topic_ko||"")),
+  c.auto_note?h("p",{class:"muted"},c.auto_note):null,c.plan_ko?h("p",{class:"muted",style:"white-space:pre-wrap"},"🤖 AI 판단: "+c.plan_ko):null,
   h("img",{class:"shot",src:r.png,alt:""}),!r.sheet&&CS.busy?h("p",{class:"muted"},"문구 미리 보기예요. 그림이 오면 채워져요."):null,
   r.sheet?h("div",{},
    h("div",{class:"row",style:"margin-top:8px"},
@@ -506,12 +556,17 @@ function resultCard(r){const c=r.cards;const cap=captionText(c);
     h("button",{class:"btn small",onclick:()=>{N.copy(cap);toast(N.saveShare(fileBase(c)+".png","image/png",r.png.split(",")[1],cap)+" · 캡션은 복사해 뒀어요")}},"📤 저장·공유"),
     WEB&&CS.reelFile?h("button",{class:"btn main small",onclick:()=>toast(webShare(CS.reelFile))},"📤 릴스 저장·공유"):h("button",{class:"btn small",onclick:()=>reel(true)},"🎬 릴스 만들어 인스타로"),
     h("button",{class:"btn small",onclick:telegram},"✈️ 텔레그램"),
-    h("button",{class:"btn small",disabled:CS.busy,onclick:redraw},"🎨 그림 다시")),
-   h("div",{class:"row",style:"margin-top:6px"},h("button",{class:"btn small",onclick:()=>copy(cap,"캡션")},"📋 캡션"),c.comment?h("button",{class:"btn small",onclick:()=>copy(c.comment,"고정댓글")},"📋 고정댓글"):null,
-    c.poll_q?h("button",{class:"btn small",onclick:()=>copy(c.poll_q+"\n"+(c.poll_opts||[]).join("\n"),"투표")},"📋 투표"):null)):null,
-  h("div",{class:"desc"},cap),
-  c.comment?h("div",{class:"muted"},"📌 고정댓글: "+c.comment+(c.comment_ko?"\n("+c.comment_ko+")":"")):null,
-  h("details",{},h("summary",{class:"muted"},"🇰🇷 한국어 뜻"),h("div",{class:"desc"},[(c.title_ko||""),"",...c.items.map((x,i)=>`${i+1}. ${x.subject} — ${x.line1} (${x.ko1})`),"",c.caption_ko||""].join("\n"))))}
+    h("button",{class:"btn small",disabled:CS.busy,onclick:redraw},"🎨 그림 다시"))):null,
+  // 캡션·고정댓글·투표를 따로(복사할 때 한국어가 섞이지 않게), 독음·뜻은 맨 아래 따로(PC 0.7.47, 에이스 2026-11-08 '이건 앱에서도 마찬가지야')
+  part("📝 캡션",cap),c.comment?part("📌 고정댓글",c.comment):null,c.poll_q?part("🗳 투표",pollText(c)):null,
+  h("div",{class:"part"},h("b",{},"🇰🇷 독음 · 뜻"),h("div",{class:"desc"},glossText(c))))}
+function pollText(c){return [c.poll_q,...(c.poll_opts||[])].join("\n")}
+function part(label,text){return h("div",{class:"part"},h("div",{class:"row"},h("b",{class:"grow"},label),h("button",{class:"btn small",onclick:()=>copy(text,label.slice(label.indexOf(" ")+1))},"📋 복사")),h("div",{class:"desc"},text))}
+function glossText(c){const L=[];if(c.title_ko)L.push("제목: "+c.title_ko);
+ c.items.forEach((x,i)=>{const ja=[x.subject,x.line1].filter(Boolean).join(" — ");if(x.ko1)L.push(`${i+1}. ${ja} → ${x.ko1}`)});
+ if(c.caption_ko)L.push("","📝 캡션 뜻",c.caption_ko);
+ if(c.comment&&(c.comment_read||c.comment_ko))L.push("","📌 고정댓글",...(c.comment_read?["독음: "+c.comment_read]:[]),...(c.comment_ko?["뜻: "+c.comment_ko]:[]));
+ if(c.poll_q&&c.poll_ko)L.push("","🗳 투표 뜻",c.poll_ko);return L.join("\n").trim()}
 
 // ---- 쓰레드 글 ----
 const POST_SCHEMA={type:"object",additionalProperties:false,required:["posts"],properties:{posts:{type:"array",items:{type:"string"}}}};
@@ -697,7 +752,7 @@ function drawSettings(){const f=(k,label,ph,secret)=>{const i=h("input",{value:S
    h("button",{class:"btn small",onclick:importFromPc},"⬇️ PC에서 키 가져오기"))),
   h("div",{class:"card"},h("h2",{},"🔑 키"),...f("claude_key","Claude API 키","sk-ant-…",true),...f("model","Claude 모델","claude-opus-5-5"),...f("kie_key","Kie API 키","",true),
    ...f("notion_token","노션 키","ntn_…",true),...f("notion_memo_db","노션 메모 표 ID"),...f("telegram_token","텔레그램 봇 토큰","123456:ABC…",true),...f("telegram_chat","텔레그램 채팅 ID"),...f("account","카드 아래 @계정","@your_account")),
-  h("p",{class:"muted",style:"text-align:center"},"Creator Studio 앱 1.6 · 키는 이 폰 안에만 저장돼요"))}
+  h("p",{class:"muted",style:"text-align:center"},"Creator Studio 앱 1.7 · 키는 이 폰 안에만 저장돼요"))}
 
 function drawIdeas(){pcView({tab:"ideas",name:"소재 발굴"},async()=>{const d=await pc("/api/ideas");if(CS.tab!=="ideas")return;
  CS.ideaKind=CS.ideaKind||"일반인";const act=async(path,body)=>{try{const r=await pc(path,{method:"POST",body});toast(r.message||"");setTimeout(drawIdeas,path.endsWith("run")?1500:200)}catch(e){toast(e.message)}};

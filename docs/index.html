@@ -278,6 +278,7 @@ function wrapText(text,measure,maxW,keep){const n=text.length;if(!n)return[[],0]
  if(!best[n])return[[text],99];const lines=[];let j=n;while(j>0){const i=best[j][1];lines.unshift(text.slice(i,j));j=i}return[lines,best[n][0]-2*lines.length]}
 function circled(n){return n>=1&&n<=20?String.fromCharCode(0x2460+n-1):String(n)}
 // 그림 한 줄(PC 0.7.50과 같게, 에이스 2026-11-09 '사진이 너무 작아 … 원본은 이렇게 큰데'): 칸 자르기·옆 칸 조각 빼기·사진인지 보기·번호 이름표
+const STRIP_RATIO=.45,STRIP_MAX_H=700;// 사진 띠 한 칸 가로:세로·높이 한도(원본 릴스처럼 세로로 길게, 에이스 2026-11-09 '여전히 크기가 너무 작고')
 const STRIP_SIDE=40,NUMBER_LABEL=/^[\(（\[【]?\s*(?:No\.?|NO\.?)?\s*([①-⑳]|[0-9０-９]{1,2}|[A-Za-zＡ-Ｚａ-ｚ])\s*[\)）\]】.．番]?$/;
 function numberMark(t){const m=NUMBER_LABEL.exec((t||"").trim());return m?m[1].normalize("NFKC").toUpperCase():""}
 function subCanvas(img,x,y,w,h){const t=document.createElement("canvas");t.width=Math.max(1,Math.round(w));t.height=Math.max(1,Math.round(h));t.getContext("2d").drawImage(img,x,y,w,h,0,0,t.width,t.height);return t}
@@ -296,6 +297,30 @@ function edgeShare(cv,t,test){const w=cv.width,h=cv.height,L=lum(cv);let n=0,hit
 function cleanWhite(cv){return edgeShare(cv,Math.max(2,Math.floor(Math.min(cv.width,cv.height)*.04)),v=>v>=246)>=.9}// 새하얀 바탕 그림(오려 붙이기)
 function isPhoto(cv){return cv.width>=8&&cv.height>=8&&edgeShare(cv,3,v=>v>=235)<.25}// 바탕까지 찍힌 사진(나무 책상 위 손 …)
 function drawCover(g,cv,x,y,w,h){const k=Math.max(w/cv.width,h/cv.height),sw=w/k,sh=h/k;g.drawImage(cv,(cv.width-sw)/2,(cv.height-sh)/2,sw,sh,x,y,w,h)}
+// 사진을 칸에 꽉 차게 자르되 가운데가 아니라 바탕과 가장 다른 곳(손·물건)이 들어가게
+function drawSmartCover(g,cv,x,y,w,h){const k=Math.max(w/cv.width,h/cv.height),sw=w/k,sh=h/k;
+ const W=cv.width>=cv.height?64:Math.max(1,Math.round(64*cv.width/cv.height)),H=cv.width>=cv.height?Math.max(1,Math.round(64*cv.height/cv.width)):64;
+ const t=document.createElement("canvas");t.width=W;t.height=H;const tg=t.getContext("2d");tg.drawImage(cv,0,0,W,H);const d=tg.getImageData(0,0,W,H).data;
+ const ring=[];for(let x2=0;x2<W;x2++)for(const y2 of[0,H-1])ring.push(4*(y2*W+x2));for(let y2=0;y2<H;y2++)for(const x2 of[0,W-1])ring.push(4*(y2*W+x2));
+ const bg=[0,1,2].map(c=>{const v=ring.map(i=>d[i+c]).sort((a,b)=>a-b);return v[v.length>>1]});
+ const colS=new Array(W).fill(0),rowS=new Array(H).fill(0);for(let y2=0;y2<H;y2++)for(let x2=0;x2<W;x2++){const i=4*(y2*W+x2),v=Math.abs(d[i]-bg[0])+Math.abs(d[i+1]-bg[1])+Math.abs(d[i+2]-bg[2]);colS[x2]+=v;rowS[y2]+=v}
+ const center=(prof,keep)=>{const n=prof.length,win=Math.max(1,Math.min(n,Math.round(n*keep)));if(win>=n)return .5;let best=0,bs=-1;
+  for(let i=0;i+win<=n;i++){let sum=0;for(let j=i;j<i+win;j++)sum+=prof[j];if(sum>bs||(sum===bs&&Math.abs(i-(n-win)/2)<Math.abs(best-(n-win)/2))){bs=sum;best=i}}return best/(n-win)};
+ const cx=sw<cv.width?center(colS,sw/cv.width):.5,cy=sh<cv.height?center(rowS,sh/cv.height):.5;
+ g.drawImage(cv,(cv.width-sw)*cx,(cv.height-sh)*cy,sw,sh,x,y,w,h)}
+// 그림 시트에서 네모난 사진 count장의 자리(읽는 순서). 그림이 칸을 안 지키면(3장 + 아래 1장) 똑같이 나눠 자르면 흰 여백이 섞인다. 딱 count장이 아니면 null
+function photoBoxes(img,count){const W=256,H=Math.max(8,Math.round(img.naturalHeight*W/img.naturalWidth));const t=document.createElement("canvas");t.width=W;t.height=H;
+ const tg=t.getContext("2d");tg.drawImage(img,0,0,W,H);const d=tg.getImageData(0,0,W,H).data,m=new Uint8Array(W*H);
+ for(let i=0;i<W*H;i++)m[i]=(d[4*i]*299+d[4*i+1]*587+d[4*i+2]*114)/1000<236?1:0;
+ const g2=new Uint8Array(W*H);for(let y=0;y<H;y++)for(let x=0;x<W;x++){let on=0;for(let dy=-1;dy<=1&&!on;dy++)for(let dx=-1;dx<=1;dx++){const xx=x+dx,yy=y+dy;if(xx>=0&&yy>=0&&xx<W&&yy<H&&m[yy*W+xx]){on=1;break}}g2[y*W+x]=on}
+ const comps=[];for(let s0=0;s0<W*H;s0++){if(g2[s0]!==1)continue;g2[s0]=2;const st=[s0];let n=0,x0=W,y0=H,x1=-1,y1=-1;
+  while(st.length){const i=st.pop();n++;const x=i%W,y=(i/W)|0;if(x<x0)x0=x;if(y<y0)y0=y;if(x>x1)x1=x;if(y>y1)y1=y;
+   for(const[j,ok]of[[i-1,x>0],[i+1,x<W-1],[i-W,y>0],[i+W,y<H-1]])if(ok&&g2[j]===1){g2[j]=2;st.push(j)}}
+  if((x1-x0+1)*(y1-y0+1)>=.02*W*H)comps.push([x0,y0,x1+1,y1+1,n])}
+ if(comps.length!==count||comps.some(([a,b,c2,e,n])=>n<.8*(c2-a)*(e-b)))return null;
+ const hs=comps.map(b=>b[3]-b[1]).sort((a,b)=>a-b),tall=hs[hs.length>>1];comps.sort((a,b)=>(a[1]+a[3])/2-(b[1]+b[3])/2||a[0]-b[0]);
+ const rows=[];for(const b of comps){if(rows.length&&Math.abs((rows[rows.length-1][0][1]+rows[rows.length-1][0][3])/2-(b[1]+b[3])/2)<tall/2)rows[rows.length-1].push(b);else rows.push([b])}
+ const k=img.naturalWidth/W;return rows.flatMap(r=>r.sort((a,b)=>a[0]-b[0])).map(([a,b,c2,e])=>{const x0=a*k,y0=b*k,x1=c2*k,y1=e*k,ins=.015*Math.min(x1-x0,y1-y0)+2*k;return[x0+ins,y0+ins,x1-x0-2*ins,y1-y0-2*ins]})}
 function mascotPrompt(c){if(c.art_style==="photo"){const art=(c.mascot||"a friendly Japanese woman in her 20s smiling and waving").replace(/\.$/,"");
   return `One single photorealistic photo of one subject cut out on a pure white seamless studio background, for a Japanese Instagram post. ${PHOTO_STYLE} The subject is centered with generous white margin on every side; keep hands and props well inside the image. One subject only. No borders, no frames, no text, no letters, no numbers, no logos. The photo: ${art}.`}
  const art=(c.mascot||"a cute chibi puppy waving happily").replace(/\.$/,"");
@@ -371,7 +396,8 @@ async function renderRows(c,sheetSrc,account){
  const strip=nrows===1&&nText===0&&nPic>=2,pside=strip?STRIP_SIDE:side,pband=strip?LIST_W-2*STRIP_SIDE:band;
  const sheet=sheetSrc&&nPic?await loadImg(sheetSrc):null,crops={};let photo=false;
  if(sheet){const cw=sheet.naturalWidth/nPic,chh=sheet.naturalHeight/nrows,ins=Math.round(Math.min(cw,chh)*.03);
-  for(let r=0;r<nrows;r++){let pc=0;for(let k=0;k<cols;k++)if(pics[k]==="pic"){crops[r*cols+k]=trimSlivers(subCanvas(sheet,pc*cw+ins,r*chh+ins,cw-2*ins,chh-2*ins));pc++}}
+  const boxes=strip?photoBoxes(sheet,nPic):null;// 그림이 칸을 안 지키고 그린 사진도 한 장씩 제자리에서
+  for(let r=0;r<nrows;r++){let pc=0;for(let k=0;k<cols;k++)if(pics[k]==="pic"){crops[r*cols+k]=boxes?subCanvas(sheet,...boxes[pc]):trimSlivers(subCanvas(sheet,pc*cw+ins,r*chh+ins,cw-2*ins,chh-2*ins));pc++}}
   if(strip){photo=!Object.values(crops).every(cleanWhite);// 새하얀 바탕 그림이면 오려 붙이고, 사진(나무 책상 위 손, 그늘진 흰 바탕 사진)이면 칸에 꽉 채운 사진 띠로
    for(const n in crops){const tc=tight(crops[n]);crops[n]=!photo||isPhoto(tc)?tc:trimPad(crops[n])}}
   else for(const n in crops)crops[n]=tight(crops[n])}
@@ -393,7 +419,8 @@ async function renderRows(c,sheetSrc,account){
  // 그림 높이: 줄이 많으면 예전처럼(칸 너비의 1.1배까지), 한두 줄이면 세로로 긴 그림은 길게. 실제 그림 비율로 필요한 만큼만.
  let picH=Math.max(40,Math.min(rowH-labelH-gapV-badgeH,nrows>2?unit*1.1:unit/.42));
  if(Object.keys(crops).length){let need=Math.max(...Object.entries(crops).map(([n,p])=>colW[n%cols]*(photo?1:.96)*p.height/Math.max(1,p.width)));
-  if(photo)need=Math.max(unit,Math.min(need,unit/.42));picH=Math.max(40,Math.min(picH,need))}
+  if(photo){const ratio=Math.max(STRIP_RATIO,Math.min(...Object.values(crops).map(p=>p.width/Math.max(1,p.height)))*.55);need=Math.min(unit/ratio,STRIP_MAX_H)}// 사진 띠는 세로로 길고 크게(사진 폭은 55% 이상 남기고 손·물건 쪽으로)
+  picH=Math.max(40,Math.min(picH,need))}
  const rowW=numW+colW.reduce((a,b)=>a+b,0)+gaps.reduce((a,b)=>a+b,0),x0=pside+Math.max(0,(pband-rowW)/2);
  const textCells=c.items.slice(0,nrows*cols).filter((_,n)=>pics[n%cols]==="text"),tw=unit*1.6;let tp=22;
  for(let cand=40;cand>=22;cand-=2){let ok=true;for(const it of textCells){const cnt=(it.line1?wrapText(it.line1,t=>width(t,cand,false),tw)[0].length:0)+(it.subject?wrapText(it.subject,t=>width(t,cand),tw)[0].length:0);
@@ -401,7 +428,7 @@ async function renderRows(c,sheetSrc,account){
  for(let r=0;r<nrows;r++){const cellTop=top+r*rowH+Math.max(0,(rowH-picH-labelH-gapV-badgeH)/2)+badgeH,midY=cellTop+picH/2;let x=x0;
   if(c.numbered&&!hasBadges){put(x,midY-numPx*.6,circled(r+1),numPx,ink);x+=numW}let pc=0;
   for(let k=0;k<cols;k++){const n=r*cols+k,it=c.items[n],w=colW[k];
-   if(pics[k]==="pic"){if(photo&&crops[n])drawCover(g,crops[n],x,cellTop,w,picH);// 사진 띠: 칸에 꽉 차게(가운데 기준으로 잘라서)
+   if(pics[k]==="pic"){if(photo&&crops[n])drawSmartCover(g,crops[n],x,cellTop,w,picH);// 사진 띠: 칸에 꽉 차게(손·물건이 들어가게 잘라서)
      else if(crops[n]){const art=cutout(crops[n],listTheme(c)!=="light"?6:0);
       const kk=Math.min(w/art.width,picH/art.height);const dw=art.width*kk,dh=art.height*kk;g.drawImage(art,x+w/2-dw/2,cellTop+picH-dh,dw,dh)}
      if(badges[n]){const bx=x+w/2,by=cellTop-20-badgeD/2;g.beginPath();g.arc(bx,by,badgeD/2,0,Math.PI*2);g.fillStyle="#FFFFFF";g.fill();
@@ -486,6 +513,7 @@ function cleanRows(c){let cols=Math.round(Number(c.row_cols)||0),pics,ops;
  return Object.assign(c,{kind:"rows",items,hashtags:tags,badge:"",suffix:"",mascot:"",row_cols:cols,row_pics:pics,row_ops:ops,numbered:c.numbered===true})}
 function rowsGrid(c){return[Math.max(1,c.row_pics.filter(k=>k==="pic").length),Math.max(1,Math.floor(c.items.length/c.row_cols))]}
 function rowsSheetPrompt(c,ch){const[cols,rows]=rowsGrid(c);const arts=c.items.filter((_,i)=>c.row_pics[i%c.row_cols]==="pic").map(x=>x.art.replace(/\.$/,""));
+ if(c.art_style==="photo"&&rows===1&&cols>=2)return `One single horizontal row of ${cols} separate photorealistic photos side by side: ${cols} equal-sized tall vertical panels that together fill the whole image, for a Japanese Instagram post. ${PHOTO_STYLE}${photoHint(ch,cols)} Read 'boy' and 'girl' as a Japanese man and woman in their 20s or 30s unless a child is clearly described. Each photo fills its whole panel edge to edge from top to bottom (full-bleed: the real background or surface fills the panel, no white margin around the photo), with only a thin white gap between panels. Keep each subject (hands, faces, props) centered and fully inside its panel. All panels stay in the one row; never put a photo on a second row. No borders, no frames, no text, no letters, no numbers, no logos, no speech bubbles. Panels in order, left to right: `+arts.map((a,i)=>`${i+1}) ${a};`).join(" ");// 사진 한 줄: 칸마다 꽉 찬 세로 사진(에이스 2026-11-09)
  if(c.art_style==="photo")return `A ${cols} columns by ${rows} rows grid of ${cols*rows} separate photorealistic photos (real people, or real food/objects when described), each subject cut out on a pure white seamless studio background, for a Japanese Instagram post. ${PHOTO_STYLE}${photoHint(ch,cols*rows)} Read 'boy' and 'girl' as a Japanese man and woman in their 20s or 30s unless a child is clearly described. Each subject is centered in its own equal-sized cell with generous white margin; keep heads, hands, feet and props well inside the cell. No borders, no frames, no grid lines, no text, no letters, no numbers, no logos, no speech bubbles. Cells in order, left to right, top to bottom: `+arts.map((a,i)=>`${i+1}) ${a};`).join(" ");
  return `A ${cols} columns by ${rows} rows grid of ${cols*rows} separate cute illustrations on a pure white background, for a Japanese Instagram post. ${STYLE}${(HINT[ch]||"").replace("{n}",cols*rows)} Each illustration is centered in its own equal-sized cell with generous white margin; keep hands and props well inside the cell. No borders, no frames, no grid lines, no text, no letters, no numbers, no speech bubbles. Cells in order, left to right, top to bottom: `+arts.map((a,i)=>`${i+1}) ${a};`).join(" ")}
 function grid(n){if(n===12)return[4,3];const cols=n<=4?2:n<=9?3:4;return[cols,Math.ceil(n/cols)]}
@@ -820,7 +848,7 @@ function drawSettings(){const f=(k,label,ph,secret)=>{const i=h("input",{value:S
    h("button",{class:"btn small",onclick:importFromPc},"⬇️ PC에서 키 가져오기"))),
   h("div",{class:"card"},h("h2",{},"🔑 키"),...f("claude_key","Claude API 키","sk-ant-…",true),...f("model","Claude 모델","claude-opus-5-5"),...f("kie_key","Kie API 키","",true),
    ...f("notion_token","노션 키","ntn_…",true),...f("notion_memo_db","노션 메모 표 ID"),...f("telegram_token","텔레그램 봇 토큰","123456:ABC…",true),...f("telegram_chat","텔레그램 채팅 ID"),...f("account","카드 아래 @계정","@your_account")),
-  h("p",{class:"muted",style:"text-align:center"},"Creator Studio 앱 1.9 · 키는 이 폰 안에만 저장돼요"))}
+  h("p",{class:"muted",style:"text-align:center"},"Creator Studio 앱 2.0 · 키는 이 폰 안에만 저장돼요"))}
 
 function drawIdeas(){pcView({tab:"ideas",name:"소재 발굴"},async()=>{const d=await pc("/api/ideas");if(CS.tab!=="ideas")return;
  CS.ideaKind=CS.ideaKind||"일반인";const act=async(path,body)=>{try{const r=await pc(path,{method:"POST",body});toast(r.message||"");setTimeout(drawIdeas,path.endsWith("run")?1500:200)}catch(e){toast(e.message)}};

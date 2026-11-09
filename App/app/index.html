@@ -214,6 +214,10 @@ line1은 일본어 です・ます체 부드러운 존댓말(반말 금지). 「
 const LIST_MAX=12,LIST_W=1080,LIST_H=1920,LIST_TOP=292,LIST_RIGHT=904,LIST_CLOSING_Y=1404;
 const LIST_THEMES={dark:{bg:"#000000",ink:"#FFFFFF",hl:"#F7D548",tag:"#F7D548",tag_ink:"#111111",amount:"#7FDEA5",arrow:"#8F8F8F",sub:"#B9B9B9",account:"#8A8A8A"},
  light:{bg:"#FFFFFF",ink:"#1E1E1E",hl:"#E33539",tag:"#F7D548",tag_ink:"#111111",amount:"#13985A",arrow:"#9A9A9A",sub:"#707070",account:"#9A948E"}};
+// 카드 바탕색(PC 0.7.50과 같게, 에이스 2026-11-09 '흰색, 검정색, 원래 쓰던 색'): auto = 칸형 아이보리, 글 목록·그림 줄은 원본에 맞춘 검정/흰색
+const BG_CHOICES=[["auto","원래 색"],["white","흰색"],["black","검정색"]],BG_FILL={white:"#FFFFFF",black:"#000000"};
+function bgPick(){const v=S("bg");return BG_FILL[v]?v:"auto"}
+function listTheme(c){return c.bg==="white"?"light":c.bg==="black"?"dark":c.theme}
 const LIST_KEYS=["title_small","title_mid","closing","closing_hl","closing_ko","closing_read","mascot"];
 function cardSchema(lists,judge){const sc=JSON.parse(JSON.stringify(CARD_SCHEMA));if(judge){sc.properties.plan_layout={type:"string",enum:["original","cards"]};sc.properties.plan_ko={type:"string"};sc.required.push("plan_layout","plan_ko")}if(!lists)return sc;
  sc.properties.kind.enum.push("list");for(const k of LIST_KEYS)sc.properties[k]={type:"string"};sc.properties.theme={type:"string",enum:["dark","light"]};
@@ -258,6 +262,23 @@ function wrapText(text,measure,maxW,keep){const n=text.length;if(!n)return[[],0]
    const slack=j===n?(i>0&&j-i<=3?1.5:0):3*Math.pow(Math.max(0,maxW-w)/maxW,2);/* 「選ぶ？」만 마지막 줄에 남지 않게 */const c=best[i][0]+cut+slack+2;if(!best[j]||c<best[j][0])best[j]=[c,i]}}
  if(!best[n])return[[text],99];const lines=[];let j=n;while(j>0){const i=best[j][1];lines.unshift(text.slice(i,j));j=i}return[lines,best[n][0]-2*lines.length]}
 function circled(n){return n>=1&&n<=20?String.fromCharCode(0x2460+n-1):String(n)}
+// 그림 한 줄(PC 0.7.50과 같게, 에이스 2026-11-09 '사진이 너무 작아 … 원본은 이렇게 큰데'): 칸 자르기·옆 칸 조각 빼기·사진인지 보기·번호 이름표
+const STRIP_SIDE=40,NUMBER_LABEL=/^[\(（\[【]?\s*(?:No\.?|NO\.?)?\s*([①-⑳]|[0-9０-９]{1,2}|[A-Za-zＡ-Ｚａ-ｚ])\s*[\)）\]】.．番]?$/;
+function numberMark(t){const m=NUMBER_LABEL.exec((t||"").trim());return m?m[1].normalize("NFKC").toUpperCase():""}
+function subCanvas(img,x,y,w,h){const t=document.createElement("canvas");t.width=Math.max(1,Math.round(w));t.height=Math.max(1,Math.round(h));t.getContext("2d").drawImage(img,x,y,w,h,0,0,t.width,t.height);return t}
+function lum(cv){const d=cv.getContext("2d").getImageData(0,0,cv.width,cv.height).data,L=new Uint8Array(cv.width*cv.height);for(let k=0;k<L.length;k++)L[k]=(d[k*4]*299+d[k*4+1]*587+d[k*4+2]*114)/1000;return L}
+function trimSlivers(cv,thin=.08){const w=cv.width,h=cv.height,L=lum(cv),cx=new Float32Array(w),cy=new Float32Array(h);
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++)if(L[y*w+x]<235){cx[x]++;cy[y]++}
+ const keep=(size,ink,other)=>{const runs=[];let s=-1;for(let i=0;i<=size;i++){const on=i<size&&ink[i]/other*255>2.5;if(on&&s<0)s=i;else if(!on&&s>=0){runs.push([s,i]);s=-1}}
+  let lo=0,hi=size;if(runs.length>=2){const f=runs[0],l=runs[runs.length-1];if(f[0]<=.04*size&&f[1]-f[0]<thin*size)lo=f[1];if(l[1]>=.96*size&&l[1]-l[0]<thin*size)hi=l[0]}return[lo,hi]};
+ const[x0,x1]=keep(w,cx,h),[y0,y1]=keep(h,cy,w);return(x0||y0||x1<w||y1<h)&&x1>x0&&y1>y0?subCanvas(cv,x0,y0,x1-x0,y1-y0):cv}
+function tight(cv){const w=cv.width,h=cv.height,L=lum(cv);let x0=w,y0=h,x1=-1,y1=-1;for(let y=0;y<h;y++)for(let x=0;x<w;x++)if(L[y*w+x]<235){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}
+ return x1<0?cv:subCanvas(cv,x0,y0,x1-x0+1,y1-y0+1)}
+function edgeShare(cv,t,test){const w=cv.width,h=cv.height,L=lum(cv);let n=0,hit=0;const add=(x,y)=>{n++;if(test(L[y*w+x]))hit++};
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++)if(y<t||y>=h-t||x<t||x>=w-t)add(x,y);return n?hit/n:1}
+function cleanWhite(cv){return edgeShare(cv,Math.max(2,Math.floor(Math.min(cv.width,cv.height)*.04)),v=>v>=246)>=.9}// 새하얀 바탕 그림(오려 붙이기)
+function isPhoto(cv){return cv.width>=8&&cv.height>=8&&edgeShare(cv,3,v=>v>=235)<.25}// 바탕까지 찍힌 사진(나무 책상 위 손 …)
+function drawCover(g,cv,x,y,w,h){const k=Math.max(w/cv.width,h/cv.height),sw=w/k,sh=h/k;g.drawImage(cv,(cv.width-sw)/2,(cv.height-sh)/2,sw,sh,x,y,w,h)}
 function mascotPrompt(c){const art=(c.mascot||"a cute chibi puppy waving happily").replace(/\.$/,"");
  return `One single cute illustration on a pure white background, for a Japanese Instagram post. ${STYLE} The character is centered with generous white margin on every side; keep hands and props well inside the image. One character only. No borders, no frames, no text, no letters, no numbers, no speech bubbles. The illustration: ${art}.`}
 // 흰 바탕 그림 → 바깥 흰색만 투명 + (어두운 바탕이면) 흰 스티커 테두리
@@ -274,7 +295,7 @@ function cutout(img,border,src){const sw=src?src[2]:img.naturalWidth||img.width,
   for(let a=0;a<24;a++){const dx=Math.cos(a/24*Math.PI*2)*border,dy=Math.sin(a/24*Math.PI*2)*border;rg.drawImage(sil,-x0+dx,-y0+dy)}}
  rg.drawImage(t,-x0,-y0);return r}
 async function renderList(c,mascotSrc,account){
- const cv=$("#cv");cv.width=LIST_W;cv.height=LIST_H;const g=cv.getContext("2d");const th=LIST_THEMES[c.theme]||LIST_THEMES.dark;
+ const cv=$("#cv");cv.width=LIST_W;cv.height=LIST_H;const g=cv.getContext("2d");const th=LIST_THEMES[listTheme(c)]||LIST_THEMES.dark;
  g.fillStyle=th.bg;g.fillRect(0,0,LIST_W,LIST_H);g.textBaseline="top";const side=SIDE,right=LIST_W-SIDE;
  const fnt=(px,bold)=>`${bold===false?500:900} ${px}px ${FONT}`;const width=(t,px,bold)=>{g.font=fnt(px,bold);return g.measureText(t).width};
  const put=(x,y,t,px,fill,bold)=>{g.font=fnt(px,bold);g.fillStyle=fill;g.fillText(t,x,y)};
@@ -305,11 +326,11 @@ async function renderList(c,mascotSrc,account){
  if(c.closing){let cp=46;while(cp>28&&width(c.closing,cp)>right-side)cp--;const at=c.closing_hl?c.closing.indexOf(c.closing_hl):-1;const marks=Array(c.closing.length).fill(th.ink);
   if(at>=0)for(let k=at;k<at+c.closing_hl.length;k++)marks[k]=th.hl;putMarked(side,closingY,c.closing,cp,marks)}
  if(account){const hd=account.startsWith("@")?account:"@"+account;put(right-width(hd,26,false),closingY+74,hd,26,th.account,false)}
- if(pic&&box){const art=cutout(pic,c.theme!=="light"?7:0);const bw=box[2]-box[0],bh=box[3]-box[1];const k=Math.min(bw/art.width,bh/art.height);
+ if(pic&&box){const art=cutout(pic,listTheme(c)!=="light"?7:0);const bw=box[2]-box[0],bh=box[3]-box[1];const k=Math.min(bw/art.width,bh/art.height);
   const dw=art.width*k,dh=art.height*k;g.drawImage(art,box[0]+(bw-dw)/2,box[1]+(bh-dh)/2,dw,dh)}
  return cv.toDataURL("image/png")}
 async function renderRows(c,sheetSrc,account){
- const cv=$("#cv");cv.width=LIST_W;cv.height=LIST_H;const g=cv.getContext("2d");const th=LIST_THEMES[c.theme]||LIST_THEMES.dark,ink=th.ink;
+ const cv=$("#cv");cv.width=LIST_W;cv.height=LIST_H;const g=cv.getContext("2d");const th=LIST_THEMES[listTheme(c)]||LIST_THEMES.dark,ink=th.ink;
  g.fillStyle=th.bg;g.fillRect(0,0,LIST_W,LIST_H);g.textBaseline="top";const side=SIDE,right=LIST_RIGHT,band=right-side,cx=(side+right)/2;
  const fnt=(px,bold)=>`${bold===false?500:900} ${px}px ${FONT}`;const width=(t,px,bold)=>{g.font=fnt(px,bold);return g.measureText(t).width};
  const put=(x,y,t,px,fill,bold)=>{g.font=fnt(px,bold);g.fillStyle=fill;g.fillText(t,x,y)};
@@ -327,31 +348,50 @@ async function renderRows(c,sheetSrc,account){
  const closingY=c.closing?LIST_CLOSING_Y:null,top=y+34,bottom=closingY!=null?closingY-30:LIST_CLOSING_Y+56;
  const cols=Math.max(1,c.row_cols),pics=[...c.row_pics,"pic","pic","pic","pic"],ops=c.row_ops||[];const nrows=Math.max(1,Math.floor(c.items.length/cols));
  const nPic=pics.slice(0,cols).filter(k=>k==="pic").length,nText=cols-nPic,rowH=(bottom-top)/nrows;
- const numPx=Math.round(Math.max(30,Math.min(44,rowH*.22))),numW=c.numbered?width(circled(nrows),numPx)+16:0,opx=Math.round(Math.max(30,Math.min(58,rowH*.26)));
- const gaps=[...Array(cols-1)].map((_,k)=>ops[k]?Math.max(width(ops[k],opx)+opx*.5,opx*1.1):14);
- const unit=(band-numW-gaps.reduce((a,b)=>a+b,0))/(nPic+1.6*nText);const colW=[...Array(cols)].map((_,k)=>pics[k]==="pic"?unit:unit*1.6);
+ // 그림 한 줄뿐(글 칸 없이 그림 2개 이상)이면 그림이 화면 가로를 거의 다 쓰는 큰 띠로(글자는 그대로 안전한 자리 안)
+ const strip=nrows===1&&nText===0&&nPic>=2,pside=strip?STRIP_SIDE:side,pband=strip?LIST_W-2*STRIP_SIDE:band;
+ const sheet=sheetSrc&&nPic?await loadImg(sheetSrc):null,crops={};let photo=false;
+ if(sheet){const cw=sheet.naturalWidth/nPic,chh=sheet.naturalHeight/nrows,ins=Math.round(Math.min(cw,chh)*.03);
+  for(let r=0;r<nrows;r++){let pc=0;for(let k=0;k<cols;k++)if(pics[k]==="pic"){crops[r*cols+k]=trimSlivers(subCanvas(sheet,pc*cw+ins,r*chh+ins,cw-2*ins,chh-2*ins));pc++}}
+  if(strip){photo=!Object.values(crops).every(cleanWhite);// 새하얀 바탕 그림이면 오려 붙이고, 사진(나무 책상 위 손, 그늘진 흰 바탕 사진)이면 칸에 꽉 채운 사진 띠로
+   for(const n in crops){const tc=tight(crops[n]);crops[n]=!photo||isPhoto(tc)?tc:crops[n]}}
+  else for(const n in crops)crops[n]=tight(crops[n])}
+ // 그림 밑 이름표가 번호뿐이면(①②③④) 원본처럼 그림 위 흰 동그라미 번호로
+ const picNs=strip?[...Array(cols).keys()].filter(k=>pics[k]==="pic"):[];let badges={};
+ if(picNs.length&&picNs.every(n=>numberMark(c.items[n].subject)))picNs.forEach(n=>badges[n]=numberMark(c.items[n].subject));
+ else if(strip&&c.numbered&&!picNs.some(n=>(c.items[n].subject||"").trim()))picNs.forEach((n,i)=>badges[n]=String(i+1));
+ const hasBadges=Object.keys(badges).length>0;
+ const numPx=Math.round(Math.max(30,Math.min(44,rowH*.22))),numW=c.numbered&&!hasBadges?width(circled(nrows),numPx)+16:0,opx=Math.round(Math.max(30,Math.min(58,rowH*.26)));
+ const gaps=[...Array(cols-1)].map((_,k)=>photo?10:ops[k]?Math.max(width(ops[k],opx)+opx*.5,opx*1.1):14);
+ const unit=(pband-numW-gaps.reduce((a,b)=>a+b,0))/(nPic+1.6*nText);const colW=[...Array(cols)].map((_,k)=>pics[k]==="pic"?unit:unit*1.6);
  const slots=colW.map((w,k)=>w+.7*((k?gaps[k-1]/2:0)+(k<cols-1?gaps[k]/2:0)));
- const labels=c.items.slice(0,nrows*cols).map((it,n)=>[n,it.subject]).filter(([n,t])=>pics[n%cols]==="pic"&&t);const gapV=Math.max(12,rowH*.06);
+ const labels=c.items.slice(0,nrows*cols).map((it,n)=>[n,it.subject]).filter(([n,t])=>pics[n%cols]==="pic"&&t&&!(n in badges));const gapV=Math.max(12,rowH*.06);
+ const badgeD=hasBadges?Math.min(96,unit*.36):0,badgeH=hasBadges?badgeD+20:0;
  let lp=22,labelLines={},labelH=0;pick=-1e9;
  for(let cand=34;cand>=20;cand--){const wrapped={};let awk=0;for(const[n,t]of labels){const[ls,bad]=wrapText(t,x=>width(x,cand),slots[n%cols]);wrapped[n]=ls;awk+=bad}
-  const most=Math.max(0,...Object.values(wrapped).map(w=>w.length)),ch=most*cand*1.18+(most?8:0),picH=rowH-ch-gapV;const score=Math.min(picH,unit)+2.5*cand-25*awk-(most>2?400:0);
+  const most=Math.max(0,...Object.values(wrapped).map(w=>w.length)),ch=most*cand*1.18+(most?8:0),picH=rowH-ch-gapV-badgeH;const score=Math.min(picH,unit)+2.5*cand-25*awk-(most>2?400:0);
   if(score>pick){lp=cand;labelLines=wrapped;labelH=ch;pick=score}}
- const picH=Math.max(40,Math.min(rowH-labelH-gapV,unit*1.1)),rowW=numW+colW.reduce((a,b)=>a+b,0)+gaps.reduce((a,b)=>a+b,0),x0=side+Math.max(0,(band-rowW)/2);
+ // 그림 높이: 줄이 많으면 예전처럼(칸 너비의 1.1배까지), 한두 줄이면 세로로 긴 그림은 길게. 실제 그림 비율로 필요한 만큼만.
+ let picH=Math.max(40,Math.min(rowH-labelH-gapV-badgeH,nrows>2?unit*1.1:unit/.42));
+ if(Object.keys(crops).length){let need=Math.max(...Object.entries(crops).map(([n,p])=>colW[n%cols]*(photo?1:.96)*p.height/Math.max(1,p.width)));
+  if(photo)need=Math.max(unit,Math.min(need,unit/.42));picH=Math.max(40,Math.min(picH,need))}
+ const rowW=numW+colW.reduce((a,b)=>a+b,0)+gaps.reduce((a,b)=>a+b,0),x0=pside+Math.max(0,(pband-rowW)/2);
  const textCells=c.items.slice(0,nrows*cols).filter((_,n)=>pics[n%cols]==="text"),tw=unit*1.6;let tp=22;
  for(let cand=40;cand>=22;cand-=2){let ok=true;for(const it of textCells){const cnt=(it.line1?wrapText(it.line1,t=>width(t,cand,false),tw)[0].length:0)+(it.subject?wrapText(it.subject,t=>width(t,cand),tw)[0].length:0);
   if(cnt>3||cnt*cand*1.3>Math.max(picH,rowH*.7)){ok=false;break}}if(ok){tp=cand;break}}
- const sheet=sheetSrc&&nPic?await loadImg(sheetSrc):null;
- for(let r=0;r<nrows;r++){const cellTop=top+r*rowH+Math.max(0,(rowH-picH-labelH-gapV)/2),midY=cellTop+picH/2;let x=x0;
-  if(c.numbered){put(x,midY-numPx*.6,circled(r+1),numPx,ink);x+=numW}let pc=0;
+ for(let r=0;r<nrows;r++){const cellTop=top+r*rowH+Math.max(0,(rowH-picH-labelH-gapV-badgeH)/2)+badgeH,midY=cellTop+picH/2;let x=x0;
+  if(c.numbered&&!hasBadges){put(x,midY-numPx*.6,circled(r+1),numPx,ink);x+=numW}let pc=0;
   for(let k=0;k<cols;k++){const n=r*cols+k,it=c.items[n],w=colW[k];
-   if(pics[k]==="pic"){if(sheet){const cw=sheet.naturalWidth/nPic,chh=sheet.naturalHeight/nrows,ins=Math.round(Math.min(cw,chh)*.03);
-      const art=cutout(sheet,c.theme!=="light"?6:0,[Math.round(pc*cw+ins),Math.round(r*chh+ins),Math.round(cw-2*ins),Math.round(chh-2*ins)]);
+   if(pics[k]==="pic"){if(photo&&crops[n])drawCover(g,crops[n],x,cellTop,w,picH);// 사진 띠: 칸에 꽉 차게(가운데 기준으로 잘라서)
+     else if(crops[n]){const art=cutout(crops[n],listTheme(c)!=="light"?6:0);
       const kk=Math.min(w/art.width,picH/art.height);const dw=art.width*kk,dh=art.height*kk;g.drawImage(art,x+w/2-dw/2,cellTop+picH-dh,dw,dh)}
+     if(badges[n]){const bx=x+w/2,by=cellTop-20-badgeD/2;g.beginPath();g.arc(bx,by,badgeD/2,0,Math.PI*2);g.fillStyle="#FFFFFF";g.fill();
+      g.lineWidth=Math.max(1,Math.round(badgeD*.04));g.strokeStyle="#1E1E1E";g.stroke();const bpx=Math.round(badgeD*(badges[n].length===1?.62:.5));putCenter(bx,by-bpx*.53,badges[n],bpx,"#111111")}
     (labelLines[n]||[]).forEach((line,i)=>putCenter(x+w/2,cellTop+picH+8+i*lp*1.18,line,lp,ink));pc++}
    else{const body=it.line1?wrapText(it.line1,t=>width(t,tp,false),w)[0]:[],hd=it.subject?wrapText(it.subject,t=>width(t,tp),w)[0]:[];let ty=midY-(hd.length+body.length)*tp*1.3/2;
     for(const line of hd){putCenter(x+w/2,ty,line,tp,body.length?th.hl:ink);ty+=tp*1.3}for(const line of body){putCenter(x+w/2,ty,line,tp,ink,false);ty+=tp*1.3}}
    x+=w;if(k<cols-1){if(ops[k])putCenter(x+gaps[k]/2,midY-opx*.62,ops[k],opx,ink);x+=gaps[k]}}}
- if(c.closing&&closingY!=null){let cp=48;while(cp>28&&width(c.closing,cp)>band)cp--;const at=c.closing_hl?c.closing.indexOf(c.closing_hl):-1;const marks=Array(c.closing.length).fill(ink);
+ if(c.closing&&closingY!=null){let cp=60;while(cp>28&&width(c.closing,cp)>band)cp--;const at=c.closing_hl?c.closing.indexOf(c.closing_hl):-1;const marks=Array(c.closing.length).fill(ink);
   if(at>=0)for(let k=at;k<at+c.closing_hl.length;k++)marks[k]=th.hl;putCenter(cx,closingY,c.closing,cp,marks)}
  if(account){const hd=account.startsWith("@")?account:"@"+account;put(right-width(hd,26,false),(closingY||LIST_CLOSING_Y)+74,hd,26,th.account,false)}
  return cv.toDataURL("image/png")}
@@ -454,16 +494,16 @@ function fitLabels(g,texts,hi,lo,maxW){const at=(t,px,limit)=>{g.font=`900 ${px}
  for(let px=hi;px>=lo;px--){const out=texts.map(t=>at(t,px,2));if(out.every(o=>o))return[px,out]}
  return[lo,texts.map(t=>at(t,lo,2)||at(t,lo,3)||[t])]}
 async function renderCard(c,sheetSrc,account,reel){const HH=reel?1920:H;
- const cv=$("#cv");cv.width=W;cv.height=HH;const g=cv.getContext("2d");g.fillStyle=BG;g.fillRect(0,0,W,HH);g.textBaseline="top";
+ const cv=$("#cv");cv.width=W;cv.height=HH;const g=cv.getContext("2d");g.fillStyle=BG_FILL[c.bg]||BG;g.fillRect(0,0,W,HH);g.textBaseline="top";const tailInk=c.bg==="black"?"#FFFFFF":"#222";
  const red=c.title_red||"",tail=c.title_tail||"",maxW=W-2*SIDE;
  // 제목: 한 줄에 들어가면 한 줄(최대 96px), 아니면 빨강 / 검정 두 줄
  let titleBottom;const T=reel?{one:148,y1:150,a:120,b:104,y2:150}:{one:96,y1:64,a:92,b:80,y2:50};g.font=`900 ${T.one}px ${FONT}`;
  const one=fit(g,red+tail,T.one,maxW,900);
  if(one>=66){g.font=`900 ${one}px ${FONT}`;const wr=g.measureText(red).width,wt=g.measureText(tail).width,x=(W-wr-wt)/2,y=T.y1;
-   g.fillStyle="#E33539";g.fillText(red,x,y);g.fillStyle="#222";g.fillText(tail,x+wr,y);titleBottom=y+one*1.12}
+   g.fillStyle="#E33539";g.fillText(red,x,y);g.fillStyle=tailInk;g.fillText(tail,x+wr,y);titleBottom=y+one*1.12}
  else{const p1=Math.min(T.a,fit(g,red,T.a,maxW,900)),p2=Math.min(T.b,fit(g,tail,T.b,maxW,900));let y=T.y2;
    g.font=`900 ${p1}px ${FONT}`;g.fillStyle="#E33539";g.fillText(red,(W-g.measureText(red).width)/2,y);y+=p1*1.12;
-   g.font=`900 ${p2}px ${FONT}`;g.fillStyle="#222";g.fillText(tail,(W-g.measureText(tail).width)/2,y);titleBottom=y+p2*1.12}
+   g.font=`900 ${p2}px ${FONT}`;g.fillStyle=tailInk;g.fillText(tail,(W-g.measureText(tail).width)/2,y);titleBottom=y+p2*1.12}
  const sheet=sheetSrc?await loadImg(sheetSrc):null;
  const n=c.items.length,[cols,rows]=grid(n),gap=10,mx=SIDE,top=reel?Math.max(300,Math.round(titleBottom+50)):Math.max(180,Math.round(titleBottom+40));
  const cw=(W-2*mx-(cols-1)*gap)/cols,ch=((reel?1760:H-70)-top-(rows-1)*gap)/rows;
@@ -484,7 +524,7 @@ async function renderCard(c,sheetSrc,account,reel){const HH=reel?1920:H;
    if(tiny){g.font=`700 ${Math.round(15*bf)}px ${FONT}`;g.fillText(tiny,bx+wn,y0+9+19*bf)}}
   let ly=textTop+(nl-lines.length)*lp*1.12/2;g.fillStyle=color;for(const ln of lines){const p=fit(g,ln,lp,cw-12,900);g.font=`900 ${p}px ${FONT}`;g.fillText(ln,x0+cw/2-g.measureText(ln).width/2,ly);ly+=lp*1.12}
   if(it.line1){const p=fit(g,it.line1,linePx,cw-12,500);g.font=`500 ${p}px ${FONT}`;g.fillStyle="#222";g.fillText(it.line1,x0+cw/2-g.measureText(it.line1).width/2,textTop+labelH+8)}});
- if(account){const hd=account.startsWith("@")?account:"@"+account;g.font=`400 ${reel?24:20}px ${FONT}`;g.fillStyle="#9A948E";g.fillText(hd,W/2-g.measureText(hd).width/2,reel?1812:H-50)}
+ if(account){const hd=account.startsWith("@")?account:"@"+account;g.font=`400 ${reel?24:20}px ${FONT}`;g.fillStyle=c.bg==="black"?"#8A8A8A":"#9A948E";g.fillText(hd,W/2-g.measureText(hd).width/2,reel?1812:H-50)}
  return cv.toDataURL("image/png")}
 
 // ---- 카드뉴스 만들기 ----
@@ -505,12 +545,15 @@ async function makeCards(){if(CS.busy)return;CS.busy=true;const mode=CS.mode;let
   else{ch=nextChar();progress("✍️ Claude가 틀·주제를 고르고 일본어 문구 12개를 쓰는 중… (30초쯤)");
    c=cleanCards(await claude([{type:"text",text:randomPrompt(mode==="auto"?"":CS.topic||"",ch)}],CARD_SCHEMA),12);
    if(mode==="auto")c.auto_note="🤖 아직 이 폰에서 만든 카드뉴스가 없어서 랜덤으로 만들었어요."}
-  if(c.kind==="month")c.items.forEach((x,i)=>{if(!/月$/.test(x.subject))x.subject=MONTHS[i]});c.made_by=mode;
+  if(c.kind==="month")c.items.forEach((x,i)=>{if(!/月$/.test(x.subject))x.subject=MONTHS[i]});c.made_by=mode;c.bg=bgPick();
   progress("🖼 문구 미리 보기를 그리는 중…");CS.reelFile=null;CS.result={cards:c,char:ch,png:await render(c,null,S("account")),sheet:null,at:Date.now()};drawCardnews();
   const sheet=await artJob(c,ch,progress);
   progress("🖼 카드를 그리는 중…");CS.result.sheet=sheet;CS.result.png=await render(c,sheet,S("account"));CS.result.reelPng=await reelImage(c,sheet);remember(c);
   const name=fileBase(c)+".png";const where=N.save(name,"image/png",CS.result.png.split(",")[1]);CS.result.saved=name;progress("");toast("✅ 다 만들었어요. "+where)}
  catch(e){CS.error=e.message||String(e);toast(CS.error)}finally{CS.busy=false;drawCardnews()}}
+// 바탕색을 바꾸면 다 만든 카드도 그림은 그대로 두고 바탕만 다시 그린다(크레딧 안 씀)
+async function setBg(k){N.set("bg",k);const r=CS.result;if(r&&!CS.busy&&r.sheet!==undefined){r.cards.bg=k;CS.reelFile=null;
+  try{r.png=await render(r.cards,r.sheet,S("account"));r.reelPng=await reelImage(r.cards,r.sheet)}catch(e){toast(e.message||String(e))}}drawCardnews()}
 function fileBase(c){const d=new Date();const p=n=>String(n).padStart(2,"0");return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}_${(c.title_red||"card").replace(/[\\/:*?"<>|\s]/g,"").slice(0,16)}`}
 async function redraw(){const r=CS.result;if(!r||CS.busy)return;CS.busy=true;drawCardnews();
  try{r.sheet=await artJob(r.cards,r.char,t=>{const e=$("#prog");if(e)e.textContent=t});
@@ -540,7 +583,8 @@ function drawCardnews(){const ready=S("claude_key")&&S("kie_key");
  else if(CS.mode==="auto")form=[h("p",{class:"muted"},"🤖 입력 없이: 이 폰에서 만든 카드뉴스 중 링크형·알아서로 만든 것(없으면 최근 것)을 바탕으로 틀·모양·칸 수는 그대로, 주제만 새로 만들어요. 방금 바탕으로 쓴 건 다음 5번 동안 뒤로 미뤄요. 만든 게 없으면 랜덤으로 만들어요.")];
  else form=[h("input",{placeholder:"주제(비우면 AI가 틀·주제를 골라요)",value:CS.topic||"",oninput:e=>CS.topic=e.target.value})];
  const r=CS.result;
- put(h("div",{class:"card"},h("h2",{},"🗂 인스타 카드뉴스 ",h("span",{class:"tag"},"PC 없이")),seg,...form,
+ const bgRow=[h("label",{},"바탕색"),h("div",{class:"seg"},BG_CHOICES.map(([k,n])=>h("button",{class:k===bgPick()?"on":"",onclick:()=>setBg(k)},n)))];
+ put(h("div",{class:"card"},h("h2",{},"🗂 인스타 카드뉴스 ",h("span",{class:"tag"},"PC 없이")),seg,...form,...bgRow,
    h("button",{class:"btn main full",disabled:CS.busy||!ready,onclick:makeCards},CS.busy?"⏳ 만드는 중…":CS.mode==="link"?"🔗 링크로 만들기":CS.mode==="auto"?"🤖 알아서 만들기":"✨ 원클릭 만들기"),
    CS.busy?h("div",{},h("div",{class:"prog",id:"prog"},""),h("div",{class:"bar"},h("i",{}))):null,
    !ready?h("p",{class:"muted"},"⚙ 설정에서 Claude·Kie 키를 넣거나, PC가 켜져 있을 때 'PC에서 가져오기'를 한 번 눌러 주세요."):h("p",{class:"muted"},"Claude가 문구를 쓰고 Kie(나노바나나 프로, 1장 약 18크레딧)가 그림을 그려요. 1~3분 걸려요."),
@@ -752,7 +796,7 @@ function drawSettings(){const f=(k,label,ph,secret)=>{const i=h("input",{value:S
    h("button",{class:"btn small",onclick:importFromPc},"⬇️ PC에서 키 가져오기"))),
   h("div",{class:"card"},h("h2",{},"🔑 키"),...f("claude_key","Claude API 키","sk-ant-…",true),...f("model","Claude 모델","claude-opus-5-5"),...f("kie_key","Kie API 키","",true),
    ...f("notion_token","노션 키","ntn_…",true),...f("notion_memo_db","노션 메모 표 ID"),...f("telegram_token","텔레그램 봇 토큰","123456:ABC…",true),...f("telegram_chat","텔레그램 채팅 ID"),...f("account","카드 아래 @계정","@your_account")),
-  h("p",{class:"muted",style:"text-align:center"},"Creator Studio 앱 1.7 · 키는 이 폰 안에만 저장돼요"))}
+  h("p",{class:"muted",style:"text-align:center"},"Creator Studio 앱 1.8 · 키는 이 폰 안에만 저장돼요"))}
 
 function drawIdeas(){pcView({tab:"ideas",name:"소재 발굴"},async()=>{const d=await pc("/api/ideas");if(CS.tab!=="ideas")return;
  CS.ideaKind=CS.ideaKind||"일반인";const act=async(path,body)=>{try{const r=await pc(path,{method:"POST",body});toast(r.message||"");setTimeout(drawIdeas,path.endsWith("run")?1500:200)}catch(e){toast(e.message)}};

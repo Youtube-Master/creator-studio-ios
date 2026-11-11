@@ -701,7 +701,8 @@ const FOLLOW_TITLE=["🎁DMを受け取るにはフォローしてください�
 const FOLLOW_BODY=["下の「プロフィールを見る」からフォロー後、「フォローしました✓」を押してください🙇‍♀️\nすぐに情報をお送りします💌","아래 '프로필 보기'에서 팔로우한 뒤 '팔로우했습니다✓'를 눌러 주세요 / 바로 정보를 보내 드릴게요"];
 const FOLLOW_BUTTONS="フォローしました✓ / プロフィールを見る";
 const REPLY_SENT=["コメントありがとうございます😊 DMをお送りしましたので、ご確認くださいね💌","댓글 감사합니다. DM 보내 드렸으니 확인해 주세요"];
-function dmOn(){return S("dm")!=="off"}
+// 글 방식(PC 0.7.54, 에이스 2026-11-11 '일반형이랑 DM 전달형 이렇게 나눠 놔'): 기본은 일반형(예전 "dm" 값은 안 읽는다 — 0.7.53은 늘 DM으로 나왔다)
+function dmOn(){return S("post")==="dm"}
 const ACCOUNT_RULES=`[계정 규칙 — もしもラボ(에이스 2026-11-10 계정 정리 문서)]
 - 계정: もしもラボ(究極の二択・クイズ・雑学・性格診断). 보는 사람은 일본 20~50대 주부. 남편·가족 이야기, 旧姓(결혼 전 성)처럼 주부가 '우리 집 얘기'로 대입해 보고 댓글을 달고 싶어지는 훅을 살립니다. 순위형이면 「ランキングにない名字の方も教えてください」처럼 해당이 없는 사람도 댓글을 달 이유를 만듭니다.
 - 캡션·고정댓글 표기: 나열은 ・, 목록 번호는 ①②③(글로 순위를 늘어놓을 때는 「1位」「1番」 대신 ①②③), 밸런스게임은 「二択」「究極の二択」, 상식 퀴즈는 「雑学」. 정중한 です・ます, 이모지는 문장 끝에 1~2개만.
@@ -858,8 +859,8 @@ function drawCardnews(){const ready=S("claude_key")&&S("kie_key");
  const artRow=[h("label",{},"그림 느낌"),h("div",{class:"seg"},ART_STYLES.map(([k,n])=>h("button",{class:k===artPick()?"on":"",onclick:()=>{N.set("art",k);drawCardnews()}},n))),
   h("p",{class:"muted"},{auto:"원본이 실제 사진이면 실사, 아니면 귀여운 그림(관찰력 테스트·1~5 정도 고르기는 실사)",cute:"라인 스티커 같은 귀여운 치비 그림",photo:"진짜 사진처럼 (다 만든 카드는 '그림 다시 그리기'로 바꿔요)"}[artPick()])];
  const bgRow=[h("label",{},"바탕색"),h("div",{class:"seg"},BG_CHOICES.map(([k,n])=>h("button",{class:k===bgPick()?"on":"",onclick:()=>setBg(k)},n)))];
- const dmRow=[h("label",{},"💌 댓글 키워드 DM (もしもラボ 규칙)"),h("div",{class:"seg"},[["on","같이 쓰기"],["off","안 쓰기"]].map(([k,n])=>h("button",{class:(dmOn()?"on":"off")===k?"on":"",onclick:()=>{N.set("dm",k);drawCardnews()}},n))),
-  h("p",{class:"muted"},dmOn()?"캡션 맨 위 안내 · 키워드 고정댓글 · 팔로우 카드 · DM(1000자마다 나눔, 퀴즈는 번호마다)":"예전처럼 캡션·고정댓글·투표만")];
+ const dmRow=[h("label",{},"글 방식"),h("div",{class:"seg"},[["plain","📝 일반형"],["dm","💌 DM 전달형"]].map(([k,n])=>h("button",{class:(dmOn()?"dm":"plain")===k?"on":"",onclick:()=>{N.set("post",k);drawCardnews()}},n))),
+  h("p",{class:"muted"},dmOn()?"캡션 맨 위 「フォロー＆「키워드」とコメントで」 안내 + 키워드 고정댓글 + 팔로우 카드·DM 글 (もしもラボ 규칙)":"캡션·고정댓글·투표만 (DM 안내 없이)")];
  put(h("div",{class:"card"},h("h2",{},"🗂 인스타 카드뉴스 ",h("span",{class:"tag"},"PC 없이")),seg,...form,...artRow,...bgRow,...dmRow,
    h("button",{class:"btn main full",disabled:CS.busy||!ready,onclick:makeCards},CS.busy?"⏳ 만드는 중…":CS.mode==="link"?"🔗 링크로 만들기":CS.mode==="auto"?"🤖 알아서 만들기":"✨ 원클릭 만들기"),
    CS.busy?h("div",{},h("div",{class:"prog",id:"prog"},""),h("div",{class:"bar"},h("i",{}))):null,
@@ -1074,7 +1075,7 @@ function drawSettings(){const f=(k,label,ph,secret)=>{const i=h("input",{value:S
    h("button",{class:"btn small",onclick:importFromPc},"⬇️ PC에서 키 가져오기"))),
   h("div",{class:"card"},h("h2",{},"🔑 키"),...f("claude_key","Claude API 키","sk-ant-…",true),...f("model","Claude 모델","claude-opus-5-5"),...f("kie_key","Kie API 키","",true),
    ...f("notion_token","노션 키","ntn_…",true),...f("notion_memo_db","노션 메모 표 ID"),...f("telegram_token","텔레그램 봇 토큰","123456:ABC…",true),...f("telegram_chat","텔레그램 채팅 ID"),...f("account","카드 아래 @계정","@your_account")),
-  h("p",{class:"muted",style:"text-align:center"},"Creator Studio 앱 2.1 · 키는 이 폰 안에만 저장돼요"))}
+  h("p",{class:"muted",style:"text-align:center"},"Creator Studio 앱 2.2 · 키는 이 폰 안에만 저장돼요"))}
 
 function drawIdeas(){pcView({tab:"ideas",name:"소재 발굴"},async()=>{const d=await pc("/api/ideas");if(CS.tab!=="ideas")return;
  CS.ideaKind=CS.ideaKind||"일반인";const act=async(path,body)=>{try{const r=await pc(path,{method:"POST",body});toast(r.message||"");setTimeout(drawIdeas,path.endsWith("run")?1500:200)}catch(e){toast(e.message)}};
@@ -1090,6 +1091,14 @@ function drawIdeas(){pcView({tab:"ideas",name:"소재 발굴"},async()=>{const d
     h("button",{class:"btn small",onclick:()=>copy(i.url,"링크")},"📋 링크"),h("button",{class:"btn small",onclick:()=>act("/api/ideas/mark",{id:i.id,status:"used"})},"✅ 썼어요"),
     h("button",{class:"btn small",onclick:()=>act("/api/ideas/mark",{id:i.id,status:"hidden"})},"🙈 빼기")))))})}
 
+// 🌍 단계(PC와 같은 순서: 처음 · 1 계정 · 2 올릴 양 · 3 음악·설문 · 4 소재 찾는 곳 · 컨펌. PC의 5~7단계는 PC에서만)
+const GSTEPS=[["🏠 처음","처음","버튼 하나로 시작해요","① 모아서 만들고 디스코드로 컨펌받아 OK한 것만 올려요 · ② 컨펌 없이 끝까지 해요 · ③ 매일 정한 시각에 ①이나 ②를 알아서 시작해요."],
+ ["1 계정","1단계 · 👤 계정","어느 계정에 올리고, 어느 계정으로 소재를 볼까요?","인스타 프로필 맨 위에 보이는 계정 이름을 그대로 적어요."],
+ ["2 올릴 양","2단계 · 📊 올릴 양","나라 계정마다 하루에 몇 개 올릴까요?","하루 개수를 고르고 릴스·게시물을 나눠요. 하나를 바꾸면 나머지가 따라와요."],
+ ["3 음악·설문","3단계 · 🎵 음악·설문","릴스에 음악과 설문을 어떻게 넣을까요?","올릴 때 폰에서 같이 넣어요. 소리 크기는 폰에 맞춰 둔 그대로 둬요."],
+ ["4 소재 찾는 곳","4단계 · 🔎 소재 찾는 곳","어디서 소재를 찾을까요?","자유롭게, 팔로우 계정에서만, 둘을 섞어서, 또는 팔로우 계정의 릴스 조회수로만 찾아요."],
+ ["✅ 컨펌","✅ 컨펌","올릴 것을 확인해요","✅/❌를 다 누르면 나라별 계정·시간에 예약돼요."]];
+let GSTEP=0;
 // 🌍 나라별 운영(PC 0.7.53): 버튼 3개(① 컨펌까지 / ② 풀딸깍 / ③ 매일 자동 예약) + 오늘 올릴 양·소재 찾는 곳(PC와 같은 스크롤) + 나라별 버전 ✅/❌ 컨펌
 function drawGlobal(){pcView({tab:"global",name:"나라별 운영"},async()=>{const d=await pc("/api/global");if(CS.tab!=="global")return;
  const act=async(path,body)=>{try{const r=await pc(path,{method:"POST",body});toast(r.message||"");setTimeout(drawGlobal,/decide$|set$/.test(path)?150:1500)}catch(e){toast(e.message)}};
@@ -1110,12 +1119,13 @@ function drawGlobal(){pcView({tab:"global",name:"나라별 운영"},async()=>{co
  // 👥 소재 찾는 곳: 자유롭게 / 팔로우 계정에서만 / 섞어서(비율) + 팔로우 계정 목록
  const so=d.source,mix=so&&so.mode==="mix",fst=so?so.step||10:10,fr=[];for(let p=100-fst;p>0;p-=fst)fr.push(p);
  if(mix&&!fr.includes(so.pct)){fr.push(so.pct);fr.sort((x,y)=>y-x)}
- const list=so?h("textarea",{rows:4,placeholder:"팔로우 계정 이름을 한 줄에 하나씩(@ 없이도 되고, 인스타 주소를 붙여 넣어도 돼요)"},so.accounts.join("\n")):null;
- const src=!so?null:h("div",{class:"card"},h("h2",{},"👥 소재 찾는 곳"),
-  h("div",{class:"picks",style:"margin-top:2px"},h("div",{style:"flex:1 1 120px"},pick(so.mode,so.modes.map(m=>[m.value,m.text]),v=>{if(v==="mix")N.set("follow_mix",String(N.get("follow_mix")||50));set({follow_pct:v==="free"?0:v==="follow"?100:+(N.get("follow_mix")||50)})})),
+ const list=so?h("textarea",{rows:4,placeholder:"팔로우 계정 이름을 한 줄에 하나씩 (예: docchi.jp). 인스타 주소를 붙여 넣어도 돼요. 자유롭게 찾기면 비워 둬도 돼요."},so.accounts.join("\n")):null;
+ const src=!so?null:h("div",{class:"card"},h("h2",{},"👥 찾는 방법"),
+  h("div",{class:"picks",style:"margin-top:2px"},h("div",{style:"flex:1 1 120px"},pick(so.mode,so.modes.map(m=>[m.value,m.text]),v=>{if(v==="views"){set({views_only:true});return}if(v==="mix")N.set("follow_mix",String(N.get("follow_mix")||50));set({views_only:false,follow_pct:v==="free"?0:v==="follow"?100:+(N.get("follow_mix")||50)})})),
    mix?h("div",{style:"flex:1.6 1 190px"},pick(so.pct,fr.map(p=>[p,"팔로우 "+p+"% : 자유 "+(100-p)+"%"]),v=>{N.set("follow_mix",v);set({follow_pct:+v})})):null),
   h("div",{class:"muted",style:"margin-top:8px"},"→ "+so.text),
-  h("div",{class:"cap muted",style:"margin-top:10px"},"팔로우 계정 목록 · "+so.accounts.length+"개"),list,
+  h("div",{style:"margin-top:12px;font-weight:700"},"👥 팔로우 계정 목록 = 소재를 가져올 남의 계정 · "+so.accounts.length+"개"),
+  h("div",{class:"muted"},"내 계정은 넣지 않아요."),list,
   h("div",{class:"row"},h("button",{class:"btn small",style:"white-space:nowrap;flex:1 1 auto",onclick:()=>set({follow:list.value})},"💾 목록 저장"),
    h("button",{class:"btn small",style:"white-space:nowrap;flex:1 1 auto",disabled:d.busy,onclick:()=>act("/api/global/following",{})},"📥 폰에서 팔로잉 불러오기")),
   h("div",{class:"muted",style:"margin-top:6px"},"읽기만 해요: 프로필을 열어 최근 게시물의 숫자만 봐요."));
@@ -1131,19 +1141,20 @@ function drawGlobal(){pcView({tab:"global",name:"나라별 운영"},async()=>{co
   h("div",{class:"muted",style:"margin-top:8px"},"→ "+mu.text),
   h("div",{class:"muted",style:"margin-top:4px"},"설문은 그 릴스·캐러셀 내용에 맞게 질문과 선택 항목 2~4개를 그 나라 말로 써서 넣어요."));
  // 👤 계정(에이스 11-11): 🔎 수집할 계정(피드를 볼 때 폰 인스타를 바꿔 둘 계정, 읽기만) + 📤 나라별 올릴 계정(체크한 나라만 만들고, 올리기 전에 그 계정으로 바꾼다)
- const srcIn=h("input",{class:"inp",placeholder:"수집할 계정 이름(@ 없이)",value:d.source_account||"",autocapitalize:"off",autocorrect:"off",spellcheck:"false"});
+ const srcIn=h("input",{class:"inp",placeholder:"예: moshimo_source",value:d.source_account||"",autocapitalize:"off",autocorrect:"off",spellcheck:"false"});
  const rows=d.countries.map(c=>{const chk=h("input",{type:"checkbox",style:"width:20px;height:20px;margin:0;padding:0"});chk.checked=!!c.on;
-  const inp=h("input",{class:"inp",style:"flex:1 1 140px;min-width:0;margin:0",placeholder:c.name+" 계정 이름",value:c.account||"",autocapitalize:"off",autocorrect:"off",spellcheck:"false"});
+  const inp=h("input",{class:"inp",style:"flex:1 1 140px;min-width:0;margin:0",placeholder:c.code==="JP"?"예: mosimo_labo.jp":c.name+" 계정 이름",value:c.account||"",autocapitalize:"off",autocorrect:"off",spellcheck:"false"});
   return {c,chk,inp,el:h("div",{class:"row",style:"align-items:center;margin-top:6px"},h("label",{style:"white-space:nowrap;flex:0 0 108px;display:flex;align-items:center;gap:6px"},chk,c.flag+" "+c.name),inp)}});
- const acc=h("div",{class:"card"},h("h2",{},"👤 계정"),
-  h("div",{class:"cap"},"🔎 수집할 계정"),srcIn,
-  h("div",{class:"muted",style:"margin-top:4px"},"📱 피드에서 모을 때 폰 인스타를 이 계정으로 바꾼 다음 봐요(읽기만). 비우면 지금 켜진 계정 그대로 봐요."),
-  h("div",{class:"cap",style:"margin-top:12px"},"📤 올릴 계정 (나라마다 하나, 체크한 나라만 만들어요)"),...rows.map(r=>r.el),
-  h("div",{class:"muted",style:"margin-top:6px"},"올리기 전에 폰 인스타를 그 나라 계정으로 바꿔요. 🇯🇵 일본 계정은 체크를 안 해도 적어 두세요(카드뉴스에서 그냥 올릴 때도 이 계정으로 맞춰요)."),
+ const acc=h("div",{class:"card"},h("h2",{},"📤 올릴 계정 = 내 계정 (나라마다 하나)"),
+  h("div",{class:"muted"},"체크한 나라만 만들고, 올리기 전에 폰 인스타를 그 나라 계정으로 바꿔요. 🇯🇵 일본 계정은 체크를 안 해도 적어 두세요(카드뉴스에서 그냥 올릴 때도 이 계정으로 맞춰요)."),
+  ...rows.map(r=>r.el),
+  h("h2",{style:"margin-top:16px"},"🔎 수집할 계정 = 소재를 보러 다닐 계정"),srcIn,
+  h("div",{class:"muted",style:"margin-top:4px"},"📱 피드에서 모을 때만 폰 인스타를 이 계정으로 바꿔서 봐요(읽기만). 위 내 계정 말고, 소재 보기용으로 따로 만든 계정을 적어요. 없으면 비워 두세요."),
   h("button",{class:"btn main",style:"margin-top:10px;width:100%",onclick:()=>{const cs={};for(const r of rows)cs[r.c.code]={on:r.chk.checked,account:r.inp.value.trim().replace(/^@/,"")};
    set({source_account:srcIn.value.trim().replace(/^@/,""),countries:cs})}},"💾 계정 저장"));
- const head=h("div",{class:"card"},h("h2",{},"🌍 나라별 운영"),h("div",{class:"muted"},on.map(c=>c.flag+" "+c.name+(c.account?" @"+c.account:" (계정 없음)")).join(" · ")||"PC에서 나라·계정을 켜 주세요"),
-  h("div",{class:"muted"},"모아 둔 소재 후보 "+d.candidates+"개"+(d.state?" · "+d.state:"")),
+ // 처음 페이지(에이스 11-11 '이 버튼은 맨 앞 페이지에다가 넣어놔', '이거 모으기 어디서 하라는 거야'): 순서 안내 + 모아 둔 후보 수 + 딸깍 버튼
+ const head=h("div",{class:"card"},h("div",{style:"font-weight:700"},"❶ PC에 폰을 USB로 연결하고 ❷ ① 또는 ②를 딸깍 → 폰 피드에서 모으기부터 만들기·컨펌·예약까지 한 번에 해요"),
+  h("div",{class:"muted",style:"margin-top:4px"},"📦 모아 둔 소재 후보 "+d.candidates+"개"+(d.candidates?"":" · ①②를 누르면 폰 피드에서 먼저 모아요(PC에 폰이 연결돼 있어야 해요).")+(d.state?" · "+d.state:"")),
   d.warn?h("div",{style:"color:#d9534f;margin-top:6px"},d.warn):null,
   h("div",{class:"row",style:"margin-top:8px"},h("button",{class:"btn main",style:wide+"flex:1 1 128px",disabled:d.busy,onclick:()=>act("/api/global/run",{mode:"confirm"})},"① 컨펌까지 딸깍"),
    h("button",{class:"btn main",style:wide+"flex:1 1 128px",disabled:d.busy,onclick:()=>act("/api/global/run",{mode:"auto"})},"② 풀딸깍"),
@@ -1151,15 +1162,16 @@ function drawGlobal(){pcView({tab:"global",name:"나라별 운영"},async()=>{co
   dl?h("div",{class:"picks"},h("div",{style:"flex:1 1 110px"},h("div",{class:"cap"},"③ 시작 시각"),pick(dl.time,times.map(t=>[t.value,t.text]),v=>set({daily_time:v}))),
    h("div",{style:"flex:1.7 1 190px"},h("div",{class:"cap"},"③이 그 시각에 시작할 것"),pick(dl.mode,dl.modes.map(m=>[m.value,m.text]),v=>set({daily_mode:v})))):null,
   dl?h("div",{class:"muted",style:"margin-top:6px"},"⏰ "+dl.text+" · PC와 Creator Studio가 켜져 있을 때 시작해요."):null,
-  h("div",{class:"row",style:"margin-top:6px"},h("button",{class:"btn small",disabled:d.busy,onclick:()=>act("/api/global/collect",{})},"📱 피드 모으기만"),
-   h("button",{class:"btn small",onclick:()=>act("/api/global/stop",{})},"■ 멈추기"),h("div",{class:"grow"}),h("button",{class:"btn small",onclick:drawGlobal},"🔄")));
+  // 에이스 11-11 '모으기만 하는 거랑 모으고 만들기로 이어지는 버튼 하나': 📱 모으고 만들기 = 새로 모은 다음 바로 ①처럼 디스코드 컨펌까지
+  h("div",{class:"row",style:"margin-top:8px"},h("button",{class:"btn",style:wide+"flex:1 1 140px",disabled:d.busy,onclick:()=>act("/api/global/collect",{})},"📱 피드 모으기만"),
+   h("button",{class:"btn main",style:wide+"flex:1.4 1 190px",disabled:d.busy,onclick:()=>act("/api/global/run",{mode:"confirm",collect:true})},"📱 모으고 만들기 → ① 컨펌")),
+  h("div",{class:"row",style:"margin-top:6px"},h("button",{class:"btn small",onclick:()=>act("/api/global/stop",{})},"■ 멈추기"),h("div",{class:"grow"}),h("button",{class:"btn small",onclick:drawGlobal},"🔄")));
  const b=d.batches[0];
- if(!b){put(head,acc,amt,mus,src,h("div",{class:"card muted"},"아직 만든 묶음이 없어요. 위 딸깍 버튼을 눌러 주세요."));return}
- const top=h("div",{class:"card"},h("h2",{},"✅ 컨펌 · "+b.created),h("div",{class:"muted"},b.mode+" · "+b.state+" · 대기 "+b.pending+"개"),
+ const top=!b?null:h("div",{class:"card"},h("h2",{},"✅ 컨펌 · "+b.created),h("div",{class:"muted"},b.mode+" · "+b.state+" · 대기 "+b.pending+"개"),
   b.pending?h("button",{class:"btn small",style:"margin-top:6px",onclick:()=>act("/api/global/decide",{batch:b.id,item:"*",code:"*",ok:true})},"✅ 남은 것 전부 OK"):null);
  // 그림은 화면에 가까워질 때만 PC에서 받아 온다(소재 15개 × 나라 수만큼이라 한꺼번에 받으면 느림)
  const lazy=window.IntersectionObserver?new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){lazy.unobserve(e.target);e.target._load()}}),{rootMargin:"800px"}):null;
- const cards=[];for(const it of b.items){const waiting=it.versions.filter(v=>v.status==="컨펌 대기"&&!v.error).length;
+ const cards=[];for(const it of b?b.items:[]){const waiting=it.versions.filter(v=>v.status==="컨펌 대기"&&!v.error).length;
   cards.push(h("div",{class:"row",style:"margin:14px 2px 0;align-items:center"},h("div",{class:"muted grow"},"🗂 "+it.title+" · "+it.source),
    waiting?h("button",{class:"btn small",style:"white-space:nowrap",onclick:()=>act("/api/global/decide",{batch:b.id,item:it.id,code:"*",ok:true})},"✅ 이 소재 전부 OK"):null));
   for(const v of it.versions){const img=h("img",{style:"width:100%;border-radius:10px;background:#eee;min-height:80px",alt:v.name});
@@ -1175,7 +1187,24 @@ function drawGlobal(){pcView({tab:"global",name:"나라별 운영"},async()=>{co
     v.error||(done&&v.status==="예약됨")?null:h("div",{class:"row",style:"margin-top:6px"},
      h("button",{class:"btn small main grow",onclick:()=>act("/api/global/decide",{batch:b.id,item:it.id,code:v.code,ok:true})},"✅ OK"),
      h("button",{class:"btn small grow",onclick:()=>act("/api/global/decide",{batch:b.id,item:it.id,code:v.code,ok:false})},"❌ 안 올림"))))}}
- put(head,acc,amt,mus,src,top,...cards)})}
+ // 한 단계 = 한 페이지(에이스 11-11 'UI가 너무 복잡하니까 한 세션 설정하는 거당 한 페이지', '하단에 다음 버튼 추가해서 페이지별로 스텝별로'). PC와 같은 순서
+ const pend=d.batches.reduce((n,x)=>n+(x.pending||0),0),last=GSTEPS.length-1;
+ const go=i=>{GSTEP=(i+GSTEPS.length)%GSTEPS.length;show();window.scrollTo(0,0)};
+ const summary=h("div",{class:"card"},h("h2",{},"📋 지금 설정"),...[
+   [1,"올릴 "+(on.map(c=>c.flag+" "+(c.account?"@"+c.account:"(계정 없음)")).join(" · ")||"켠 나라 없음")+" · 수집 "+(d.source_account?"@"+d.source_account:"지금 켜진 계정")],
+   [2,d.amount||""],[3,(mu?mu.text:"")+" · 설문 "+(d.poll?"넣기":"안 넣기")],[4,so?so.text:""],[5,pend?"컨펌 기다리는 것 "+pend+"개":"컨펌 기다리는 것 없음"]]
+  .map(([i,t])=>h("div",{class:"row",style:"margin-top:8px;flex-wrap:nowrap;align-items:flex-start"},h("b",{style:"flex:0 0 92px;font-size:13px"},GSTEPS[i][0]),h("div",{class:"muted grow"},t),
+   h("button",{class:"btn small",style:"white-space:nowrap;padding:6px 10px",onclick:()=>go(i)},i===last?"열기 ▶":"✏ 고치기"))));
+ const pages=[[head,summary],[acc],[amt],[mus],[src],b?[top,...cards]:[h("div",{class:"card muted"},"아직 만든 묶음이 없어요. 🏠 처음 페이지의 딸깍 버튼을 눌러 주세요.")]];
+ const show=()=>{const t=GSTEPS[GSTEP],all="column-span:all;";
+  $("#main").classList.toggle("single",GSTEP!==last);  // 펼친 화면: 설정 단계는 한 칸으로 크게, 컨펌만 두 칸
+  put(h("div",{class:"chips",style:all},GSTEPS.map((x,i)=>h("button",{class:"chip"+(i===GSTEP?" on":""),onclick:()=>go(i)},x[0]+(i===last&&pend?" ("+pend+")":"")))),
+   h("div",{style:all+"margin:8px 2px 2px"},h("div",{class:"muted",style:"font-weight:700"},t[1]),h("div",{style:"font-size:20px;font-weight:800;margin:4px 0"},t[2]),h("div",{class:"muted"},t[3])),
+   ...pages[GSTEP],
+   h("div",{class:"row",style:all+"margin:14px 0 8px;flex-wrap:nowrap"},GSTEP>0?h("button",{class:"btn",style:"flex:1;padding:14px",onclick:()=>go(GSTEP-1)},"◀ 이전"):null,
+    h("button",{class:"btn main",style:"flex:2;padding:14px",onclick:()=>go(GSTEP+1)},GSTEP===last?"🏠 처음으로":"다음: "+GSTEPS[GSTEP+1][0]+" ▶")),
+   h("div",{class:"muted",style:all+"text-align:center;margin-bottom:8px"},GSTEPS.map((x,i)=>i===GSTEP?"●":"○").join(" ")+"  "+(GSTEP+1)+" / "+GSTEPS.length))};
+ show()})}
 // ---- 화면 전환: 좁은 화면(Z폴드 바깥 화면·보통 폰)은 아래 탭 5개, 넓은 화면(Z폴드 펼침·태블릿)은 왼쪽 메뉴 전부 ----
 const DEST=[["home","🏠","홈",drawHome,"PC 상태 · 바로가기"],["cardnews","🗂","카드뉴스",drawCardnews,"폰에서 바로 · 원클릭·링크형"],["threads","🧵","쓰레드 글",drawThreads,"폰에서 바로"],["memo","💡","메모",drawMemo,"노션 저장"],
  ["upload","📤","업로드",drawUpload,"업로드 관리 · 영상 보내기"],["revenue","💰","채널 수익",drawRevenue,"일수익 · 새로 읽기"],["library","📚","제작 라이브러리",drawLibrary,"지침 카드 · Claude에서 만들기"],

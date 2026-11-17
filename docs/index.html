@@ -1142,14 +1142,57 @@ function drawPlaylist(){pcView({tab:"playlist",name:"AI 플레이리스트"},asy
   d.unfinished.length?h("div",{class:"card"},h("h2",{},"⏯ 멈춘 회차 이어서"),...d.unfinished.map(u=>h("div",{class:"row",style:"margin:4px 0"},h("div",{class:"grow muted"},u.label),h("button",{class:"btn small",disabled:d.running,onclick:async()=>{try{toast((await pc("/api/playlist/run",{method:"POST",body:{folder:u.folder}})).message);setTimeout(drawPlaylist,800)}catch(e){toast(e.message)}}},"이어서")))):null);
  if(d.running){clearTimeout(CS.plT);CS.plT=setTimeout(()=>{if(CS.tab==="playlist")drawPlaylist()},4000)}})}
 
+// 🧵 쓰레드 스튜디오(PC 0.7.59): 내 게시물 · ✋ 손으로 올리기(복사 → 쓰레드 앱 → ✅ 올렸음) · 확인 대기 예약 · 내일 글 채우기
+function drawTStudio(){pcView({tab:"tstudio",name:"쓰레드 스튜디오"},async()=>{const d=await pc("/api/threads/studio");if(CS.tab!=="tstudio")return;
+ const act=async(path,body)=>{try{toast((await pc(path,{method:"POST",body:body||{}})).message);setTimeout(drawTStudio,600)}catch(e){toast(e.message)}};
+ const cp=(t,what)=>{N.copy(t);toast("📋 "+what+" 복사했어요")};
+ const head=h("div",{class:"card"},h("h2",{},"🧵 쓰레드 스튜디오 ",h("span",{class:"tag"},"PC")),
+  h("div",{class:"row"},stat("올릴 차례",d.ready),stat("확인 대기",d.confirm),stat("연결 계정",d.accounts.length||"✋")),
+  d.fill&&d.fill.message?h("div",{class:"prog"},(d.fill.running?"⏳ ":"")+d.fill.message):null,
+  h("div",{class:"row",style:"margin-top:8px"},h("button",{class:"btn small",disabled:!d.confirm,onclick:()=>act("/api/threads/studio/confirm")},"✅ 확인 대기 모두 예약"),
+   h("button",{class:"btn small",disabled:d.fill&&d.fill.running,onclick:()=>act("/api/threads/studio/fill",{category:d.categories[0]||""})},"🗓 내일 글 채우기")),
+  h("p",{class:"muted"},"✋ 손으로 올리는 글은 때가 되면 여기(와 디스코드)에 떠요. 본문 복사 → 쓰레드 앱에 붙여 넣기 → 타래 복사 → '✅ 올렸음'."));
+ const cards=d.posts.map(p=>h("div",{class:"card"},h("div",{class:"row"},h("b",{class:"grow"},p.label+" · "+p.mode),h("span",{class:"muted"},p.when)),
+  h("div",{class:"desc"},p.text),...(p.replies||[]).map((r,i)=>h("details",{},h("summary",{class:"muted"},"타래 "+(i+1)),h("div",{class:"desc"},r))),
+  p.views!=null?h("div",{class:"muted"},"👁 "+p.views.toLocaleString()):null,p.error?h("div",{class:"muted"},"⚠ "+p.error):null,
+  p.status!=="posted"?h("div",{class:"row",style:"margin-top:6px;flex-wrap:wrap;gap:6px"},h("button",{class:"btn small",onclick:()=>cp(p.text,"본문")},"📋 본문"),
+   ...(p.replies||[]).map((r,i)=>h("button",{class:"btn small",onclick:()=>cp(r,"타래 "+(i+1))},"📋 타래 "+(i+1))),
+   h("button",{class:"btn small",onclick:()=>N.openUrl("https://www.threads.com/")},"🧵 쓰레드 열기"),
+   p.manual&&["ready","scheduled","failed"].includes(p.status)?h("button",{class:"btn small main",onclick:()=>act("/api/threads/studio/posted",{id:p.id})},"✅ 올렸음"):null):
+   (p.url?h("button",{class:"btn small",onclick:()=>N.openUrl(p.url)},"🔗 올린 글 보기"):null)));
+ put(head,...(cards.length?cards:[h("div",{class:"card muted"},"아직 글이 없어요. PC의 🧵 쓰레드 스튜디오에서 만들거나 '🗓 내일 글 채우기'를 눌러 주세요.")]));
+ if(d.fill&&d.fill.running){clearTimeout(CS.tsT);CS.tsT=setTimeout(()=>{if(CS.tab==="tstudio")drawTStudio()},4000)}})}
+
 // 카톡 중계(PC 프로그램이 카톡 창을 읽는다)
 function drawKakao(){pcView({tab:"kakao",name:"카톡 중계"},async()=>{const d=await pc("/api/kakao");if(CS.tab!=="kakao")return;
  const go2=async(what)=>{try{const r=await pc("/api/kakao/"+what,{method:"POST",body:{}});toast(r.message||"");setTimeout(drawKakao,1200)}catch(e){toast(e.message)}};
  put(h("div",{class:"card"},h("h2",{},d.running?"🟢 중계하는 중":"⚪ 꺼져 있음"),h("div",{class:"muted"},d.summary||""),d.state?h("div",{class:"prog"},d.state):null,
    h("div",{class:"row",style:"margin-top:8px"},d.running?h("button",{class:"btn full",onclick:()=>go2("stop")},"⏹ 중계 멈추기"):h("button",{class:"btn main full",onclick:()=>go2("start")},"▶ 중계 시작")),
    h("p",{class:"muted"},"방 목록·제휴 링크·보내는 방 설정은 PC 화면에서 해요. 시작할 때 PC에 확인 창이 뜨면 🖥️ PC 원격 조작에서 눌러 주세요.")),
+  kakaoPhoneCard(d),
   h("div",{class:"card"},h("div",{class:"row"},h("h2",{class:"grow"},"📜 최근 기록"),h("button",{class:"btn small",onclick:drawKakao},"🔄")),h("div",{class:"desc"},(d.log||[]).join("\n")||"아직 기록이 없어요")),
   h("button",{class:"btn full",onclick:()=>openPcPage("kakao")},"🖥️ PC에서 카톡 중계 화면 열고 원격 조작"))})}
+
+// 📱 알림으로 중계(카톡 중계 3지선다): 이 휴대폰이 카톡 알림을 읽어 PC로 넘기고, PC가 시키면 알림 '답장'으로 보낸다(안드로이드 앱만)
+function kakaoPhoneCard(d){
+ const pcSide=(d&&d.read_mode_label)?h("div",{class:"muted"},"PC 읽는 방법: "+d.read_mode_label+(d.read_mode==="phone"?"":" → PC 카톡 중계 화면에서 '📱 휴대폰 알림'으로 바꿔야 이 휴대폰 글을 써요")):null;
+ if(typeof N.kakaoPhone!=="function")return h("div",{class:"card"},h("h2",{},"📱 알림으로 중계"),pcSide,h("p",{class:"muted"},"안드로이드 앱에서만 돼요(아이폰은 다른 앱 알림을 읽을 수 없어요)."));
+ let st={};try{st=JSON.parse(N.kakaoPhone()||"{}")}catch(e){}
+ const ago=st.lastSync?Math.round((Date.now()-st.lastSync)/1000):-1;
+ const line=(ok,txt)=>h("div",{},(ok?"✅ ":"⬜ ")+txt);
+ const toggle=()=>{N.setKakaoPhone(!st.on);toast(st.on?"알림 중계를 껐어요":"알림 중계를 켰어요");setTimeout(drawKakao,600)};
+ return h("div",{class:"card"},h("h2",{},"📱 알림으로 중계 "+(st.on?"🟢 켜짐":"⚪ 꺼짐")),pcSide,
+  line(st.allowed,"알림 읽기 허용"+(st.allowed?"":" (아래 버튼 → 'Creator Studio 카톡 중계' 켜기)")),
+  line(st.on&&st.connected&&ago>=0&&ago<30,ago>=0?`PC 연결 (${ago}초 전)`:"PC 연결 (아직 안 됨)"),
+  line((st.rooms||[]).length>0,"답장 가능한 방: "+((st.rooms||[]).join(", ")||"아직 없음 — 그 방 알림이 한 번 와야 해요")),
+  h("div",{class:"muted"},`받은 글 ${st.got||0}개 · 휴대폰으로 보낸 글 ${st.sent||0}개`),
+  st.error?h("div",{class:"muted",style:"color:#e66"},"⚠️ "+st.error):null,
+  h("div",{class:"row",style:"margin-top:8px;flex-wrap:wrap;gap:6px"},
+   h("button",{class:"btn "+(st.on?"":"main ")+"small",onclick:toggle},st.on?"⏹ 끄기":"▶ 켜기"),
+   st.allowed?null:h("button",{class:"btn small",onclick:()=>N.openNotifAccess()},"🔔 알림 읽기 허용하기"),
+   h("button",{class:"btn small",onclick:()=>N.openBattery()},"🔋 배터리 최적화 빼기"),
+   h("button",{class:"btn small",onclick:drawKakao},"🔄")),
+  h("p",{class:"muted"},"카톡 앱 → 설정 → 알림에서 읽는 방·보내는 방 알림을 켜 두세요. PC 카톡을 같이 쓰면 'PC 버전 사용 중 휴대폰 알림'도 켜야 해요. 이 휴대폰은 계속 켜 두고 충전기에 꽂아 두는 게 좋아요."))}
 
 // PC 메뉴 열기 → 원격 조작
 async function openPcPage(key){try{await pc("/api/pc/show",{method:"POST",body:{page:key}});CS.go("remote")}catch(e){toast(e.message)}}
@@ -1189,7 +1232,7 @@ function drawSettings(){const f=(k,label,ph,secret)=>{const i=h("input",{value:S
    h("button",{class:"btn small",onclick:importFromPc},"⬇️ PC에서 키 가져오기"))),
   h("div",{class:"card"},h("h2",{},"🔑 키"),...f("claude_key","Claude API 키","sk-ant-…",true),...f("model","Claude 모델","claude-opus-5-5"),...f("kie_key","Kie API 키","",true),
    ...f("notion_token","노션 키","ntn_…",true),...f("notion_memo_db","노션 메모 표 ID"),...f("telegram_token","텔레그램 봇 토큰","123456:ABC…",true),...f("telegram_chat","텔레그램 채팅 ID"),...f("account","카드 아래 @계정","@your_account")),
-  h("p",{class:"muted",style:"text-align:center"},"Creator Studio 앱 2.6 · 키는 이 폰 안에만 저장돼요"))}
+  h("p",{class:"muted",style:"text-align:center"},"Creator Studio 앱 2.7 · 키는 이 폰 안에만 저장돼요"))}
 
 function drawIdeas(){pcView({tab:"ideas",name:"소재 발굴"},async()=>{const d=await pc("/api/ideas");if(CS.tab!=="ideas")return;
  CS.ideaKind=CS.ideaKind||"일반인";const act=async(path,body)=>{try{const r=await pc(path,{method:"POST",body});toast(r.message||"");setTimeout(drawIdeas,path.endsWith("run")?1500:200)}catch(e){toast(e.message)}};
@@ -1345,7 +1388,7 @@ function drawGlobal(){pcView({tab:"global",name:"딸깍 멀티유즈"},async()=>
    h("div",{class:"muted",style:all+"text-align:center;margin-bottom:8px"},GSTEPS.map((x,i)=>i===GSTEP?"●":"○").join(" ")+"  "+(GSTEP+1)+" / "+GSTEPS.length))};
  show()})}
 // ---- 화면 전환: 좁은 화면(Z폴드 바깥 화면·보통 폰)은 아래 탭 5개, 넓은 화면(Z폴드 펼침·태블릿)은 왼쪽 메뉴 전부 ----
-const DEST=[["home","🏠","홈",drawHome,"PC 상태 · 바로가기"],["cardnews","🗂","카드뉴스",drawCardnews,"폰에서 바로 · 원클릭·링크형"],["threads","🧵","쓰레드 글",drawThreads,"폰에서 바로"],["memo","💡","메모",drawMemo,"노션 저장"],
+const DEST=[["home","🏠","홈",drawHome,"PC 상태 · 바로가기"],["cardnews","🗂","카드뉴스",drawCardnews,"폰에서 바로 · 원클릭·링크형"],["threads","🧵","쓰레드 글",drawThreads,"폰에서 바로"],["tstudio","🧵","쓰레드 스튜디오",drawTStudio,"PC 예약 · ✋ 손으로 올리기"],["memo","💡","메모",drawMemo,"노션 저장"],
  ["upload","📤","업로드",drawUpload,"업로드 관리 · 영상 보내기"],["revenue","💰","채널 수익",drawRevenue,"일수익 · 새로 읽기"],["library","📚","제작 라이브러리",drawLibrary,"지침 카드 · Claude에서 만들기"],
  ["global","🌍","딸깍 멀티유즈",drawGlobal,"딸깍 3개 · 나라별 컨펌"],["ideas","🔎","소재 발굴",drawIdeas,"유튜브 소재 · 일반인/연예인"],["playlist","🎵","AI 플레이리스트",drawPlaylist,"PC가 곡·영상 만들기"],["kakao","💬","카톡 중계",drawKakao,"켜기·끄기 · 기록"],["ig","📱","인스타(폰) 올리기",drawIg,"PC에서 열고 원격으로"],
  ["remote","🖥️","PC 원격 조작",drawRemote,"PC 화면 누르기 · 글자 넣기"],["pcmenu","🧭","PC 메뉴 열기",drawPcMenu,"PC 모든 메뉴"],["settings","⚙","설정",drawSettings,"PC 주소 · 키"]];

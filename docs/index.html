@@ -593,8 +593,33 @@ async function renderRows(c,sheetSrc,account){
  return cv.toDataURL("image/png")}
 // 칸형(순위·고르기)은 릴스용 9:16을 따로(PC 0.7.47 card_reel.png): 3:4 카드를 9:16 가운데에 넣으면 위아래가 비어 보였다
 // (에이스 2026-11-08 '릴스에서 잘 보이게 빈 공간 없이 꽉 차게'). 글 목록·그림 줄은 원래 9:16.
-async function reelImage(c,src){if(c.kind==="list"||c.kind==="rows"||!src)return null;HINTS=c.breaks||[];try{return await renderCard(c,src,S("account"),true)}finally{HINTS=[]}}
-async function render(c,src,account){HINTS=c.breaks||[];try{return c.kind==="list"?await renderList(c,src,account):c.kind==="rows"?await renderRows(c,src,account):await renderCard(c,src,account)}finally{HINTS=[]}}
+async function reelImage(c,src){if(c.kind==="list"||c.kind==="rows"||!src)return null;HINTS=c.breaks||[];try{return await wmStamp(await renderCard(c,src,wmOn()?"":S("account"),true))}finally{HINTS=[]}}
+async function render(c,src,account){HINTS=c.breaks||[];if(wmOn())account="";try{return await wmStamp(c.kind==="list"?await renderList(c,src,account):c.kind==="rows"?await renderRows(c,src,account):await renderCard(c,src,account))}finally{HINTS=[]}}
+// 💧 워터마크(앱 3.7 / PC 0.7.70): 넣기/빼기 · 🔤 이름형(비우면 @계정)/🖼 로고형 · 투명/반투명. 그림 아래 빈 자리 가운데에 찍는다(켜면 작은 @계정은 뺀다)
+function wmKind(){return S("wm_kind")==="logo"?"logo":"name"}
+function wmAlpha(){return S("wm_alpha")==="light"?.32:.62}
+function wmName(){const t=(S("wm_text")||S("account")).trim().slice(0,40);return /^[A-Za-z0-9._]+$/.test(t)?"@"+t:t}
+function wmOn(){return S("wm")==="1"&&(wmKind()==="logo"?!!S("wm_logo"):!!wmName())}
+function loadImg(src){return new Promise((ok,bad)=>{const im=new Image();im.onload=()=>ok(im);im.onerror=()=>bad(new Error("그림을 못 읽었어요"));im.src=src})}
+async function wmStamp(url){if(!url||!wmOn())return url;try{const im=await loadImg(url);const w=im.naturalWidth,h=im.naturalHeight;
+ const cv=document.createElement("canvas");cv.width=w;cv.height=h;const g=cv.getContext("2d");g.drawImage(im,0,0);
+ const l=Math.round(w*.15),rw=Math.round(w*.7),scan=Math.round(h*.12),px=g.getImageData(l,h-scan,rw,scan).data;let free=0;
+ for(let y=scan-1;y>=0;y--){let s=0,s2=0;for(let x=0;x<rw;x++){const i=(y*rw+x)*4,v=.299*px[i]+.587*px[i+1]+.114*px[i+2];s+=v;s2+=v*v}const m=s/rw;if(Math.sqrt(Math.max(0,s2/rw-m*m))>6)break;free++}
+ const room=free>=h*.03?free:Math.round(h*.05),a=wmAlpha();
+ if(wmKind()==="logo"){const lg=await loadImg(S("wm_logo"));const k=Math.min(w*.24/lg.naturalWidth,Math.min(h*.05,room*.72)/lg.naturalHeight);const lw=lg.naturalWidth*k,lh=lg.naturalHeight*k;
+  g.globalAlpha=a;g.drawImage(lg,(w-lw)/2,h-room+(room-lh)/2,lw,lh)}
+ else{const t=wmName(),size=Math.max(16,Math.min(Math.round(w*.034),Math.round(room*.55)));g.font=`700 ${size}px ${FONT}`;g.textBaseline="middle";const tw=g.measureText(t).width,cy=h-room/2;
+  const d=g.getImageData(Math.max(0,(w-tw)/2),Math.max(0,cy-size/2),Math.max(1,Math.min(w,tw)),Math.max(1,size)).data;let s=0;for(let i=0;i<d.length;i+=4)s+=.299*d[i]+.587*d[i+1]+.114*d[i+2];const bright=s/(d.length/4)>=140;
+  g.lineJoin="round";g.lineWidth=Math.max(2,size/7);g.globalAlpha=a*.55;g.strokeStyle=bright?"#FFFFFF":"#141414";g.strokeText(t,(w-tw)/2,cy);
+  g.globalAlpha=a;g.fillStyle=bright?"#222222":"#FFFFFF";g.fillText(t,(w-tw)/2,cy)}
+ g.globalAlpha=1;return cv.toDataURL("image/png")}catch(e){return url}}
+function wmRow(){const on=S("wm")==="1",kind=wmKind();
+ const logoIn=h("input",{type:"file",accept:"image/*",onchange:async()=>{const f=logoIn.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{N.set("wm_logo",r.result);drawCardnews();toast("로고를 넣어 뒀어요")};r.readAsDataURL(f)}});
+ return [h("label",{},"💧 워터마크"),h("div",{class:"seg"},[["off","빼기"],["name","🔤 이름형"],["logo","🖼 로고형"]].map(([k,n])=>h("button",{class:(k==="off"?!on:on&&kind===k)?"on":"",onclick:()=>{if(k==="off")N.set("wm","");else{N.set("wm","1");N.set("wm_kind",k)}drawCardnews()}},n))),
+  on?h("div",{class:"seg"},[["light","투명(아주 연하게)"],["half","반투명(잘 보이게)"]].map(([k,n])=>h("button",{class:(S("wm_alpha")==="light"?"light":"half")===k?"on":"",onclick:()=>{N.set("wm_alpha",k);drawCardnews()}},n))):null,
+  on&&kind==="name"?h("input",{placeholder:"이름(비우면 @계정: "+(S("account")||"설정에서 넣기")+")",value:S("wm_text"),onchange:e=>{N.set("wm_text",e.target.value.trim());drawCardnews()}}):null,
+  on&&kind==="logo"?h("label",{class:"picker"},logoIn,h("span",{},S("wm_logo")?"🖼 로고 넣어 둠 (다시 고르기)":"🖼 로고 그림 고르기 (배경 투명 PNG 추천)")):null,
+  h("p",{class:"muted"},on?"카드·릴스 그림 아래 빈 자리 가운데에 찍혀요. 다 만든 카드는 '그림 다시'를 누르면 다시 찍혀요.":"워터마크 없이 만들어요.")]}
 function artJob(c,ch,progress){if(c.kind==="list")return kie(mascotPrompt(c),"1:1",progress);if(c.kind==="rows"){const[cols,rows]=rowsGrid(c);/* 그림 한 줄 띠(PC 0.7.51): 원본처럼 세로로 긴 사진 칸, 사진 한 장 + 번호는 1:1 */return kie(rowsSheetPrompt(c,ch),c.row_scene?"3:4":rows===1&&cols>=2?aspectFor(cols*0.48,1):aspectFor(cols,rows),progress)}const[cols,rows]=grid(c.items.length);return kie(sheetPrompt(c,ch),cols===4&&rows===3?"4:3":aspectFor(cols,rows),progress)}
 function nextChar(){const i=Number(S("char_i")||0);N.set("char_i",String(i+1));return CHAR_CYCLE[i%CHAR_CYCLE.length]}
 function history(){return SJ("history",[])}
@@ -916,7 +941,7 @@ function drawCardnews(){const ready=S("claude_key")&&S("kie_key");
  const bgRow=[h("label",{},"바탕색"),h("div",{class:"seg"},BG_CHOICES.map(([k,n])=>h("button",{class:k===bgPick()?"on":"",onclick:()=>setBg(k)},n)))];
  const dmRow=[h("label",{},"글 방식"),h("div",{class:"seg"},[["plain","📝 일반형"],["dm","💌 DM 전달형"],["read","🔮 해석형"]].map(([k,n])=>h("button",{class:postKind()===k?"on":"",onclick:()=>{N.set("post",k);drawCardnews()}},n))),
   h("p",{class:"muted"},{dm:"캡션 맨 위 「フォロー＆「키워드」とコメントで」 안내 + 키워드 고정댓글 + 팔로우 카드·DM 글 (もしもラボ 규칙)",read:"그림은 번호 고르기, 고정댓글에 고른 번호마다 해석을 써요 (캡션은 「結果は固定コメントへ👇」)"}[postKind()]||"캡션·고정댓글·투표만 (DM 안내 없이)")];
- put(h("div",{class:"card"},h("h2",{},"🗂 인스타 카드뉴스 ",h("span",{class:"tag"},"PC 없이")),seg,...form,...artRow,...bgRow,...dmRow,
+ put(h("div",{class:"card"},h("h2",{},"🗂 인스타 카드뉴스 ",h("span",{class:"tag"},"PC 없이")),seg,...form,...artRow,...bgRow,...dmRow,...wmRow(),
    h("button",{class:"btn main full",disabled:CS.busy||!ready,onclick:makeCards},CS.busy?"⏳ 만드는 중…":CS.mode==="link"?"🔗 링크로 만들기":CS.mode==="auto"?"🤖 알아서 만들기":"✨ 원클릭 만들기"),
    CS.busy?h("div",{},h("div",{class:"prog",id:"prog"},""),h("div",{class:"bar"},h("i",{}))):null,
    !ready?h("p",{class:"muted"},"⚙ 설정에서 Claude·Kie 키를 넣거나, PC가 켜져 있을 때 'PC에서 가져오기'를 한 번 눌러 주세요."):h("p",{class:"muted"},"Claude가 문구를 쓰고 Kie(나노바나나 프로, 1장 약 18크레딧)가 그림을 그려요. 1~3분 걸려요."),
@@ -1197,7 +1222,15 @@ function kakaoPhoneCard(d){
 // PC 메뉴 열기 → 원격 조작
 async function openPcPage(key){try{await pc("/api/pc/show",{method:"POST",body:{page:key}});CS.go("remote")}catch(e){toast(e.message)}}
 function drawIg(){put(h("div",{class:"card"},h("h2",{},"📱 인스타(폰) 올리기"),h("p",{class:"muted"},"PC가 USB·무선 디버깅으로 연결한 안드로이드 폰에 카드뉴스를 올려요. PC 화면에서 하는 기능이라, 버튼을 누르면 PC에서 그 화면을 띄우고 여기서 원격으로 조작해요."),
-  h("button",{class:"btn main full",onclick:()=>openPcPage("cardnews/1")},"🖥️ PC에서 인스타(폰) 올리기 열기")),igAutoCard())}
+  h("button",{class:"btn main full",onclick:()=>openPcPage("cardnews/1")},"🖥️ PC에서 인스타(폰) 올리기 열기")),igAutoCard(),pcWmCard())}
+// 💧 PC 카드뉴스 워터마크(PC 0.7.70): PC 카드뉴스 화면 '워터마크 넣기' 줄과 같은 설정(로고 파일은 PC에서 고른다)
+function pcWmCard(){const box=h("div",{class:"card"},h("h2",{},"💧 PC 카드뉴스 워터마크"),h("p",{class:"muted"},"PC에서 불러오는 중…"));
+ const set=async b=>{try{paint(await pc("/api/cardnews/watermark",{method:"POST",body:b}));toast("PC 워터마크 설정을 바꿨어요")}catch(e){toast(e.message)}};
+ const paint=d=>{box.innerHTML="";box.append(h("h2",{},"💧 PC 카드뉴스 워터마크"),
+  h("div",{class:"seg"},[["off","빼기"],["name","🔤 이름형"],["logo","🖼 로고형"]].map(([k,n])=>h("button",{class:(k==="off"?!d.on:d.on&&d.kind===k)?"on":"",onclick:()=>set(k==="off"?{on:false}:{on:true,kind:k})},n))),
+  d.on?h("div",{class:"seg"},[["light","투명"],["half","반투명"]].map(([k,n])=>h("button",{class:d.alpha===k?"on":"",onclick:()=>set({alpha:k})},n))):null,
+  h("p",{class:"muted"},d.on?(d.kind==="logo"?(d.logo?"로고: "+d.logo:"로고 파일이 아직 없어요. PC 카드뉴스 화면에서 '로고 파일 고르기'를 눌러 주세요."):"찍히는 이름: "+(d.name||"(PC 카드뉴스 '계정' 칸이 비어 있어요)")):"꺼짐: PC에서 만드는 카드뉴스에 워터마크를 안 넣어요."))};
+ pc("/api/cardnews/watermark").then(paint).catch(e=>{box.lastChild.textContent=e.message||String(e)});return box}
 // 🤖 카드뉴스 만들면 자동 업로드(앱 3.6 / PC 0.7.66): PC 카드뉴스 미리 보기 위 버튼과 같은 설정. 켜진 걸 다시 누르면 꺼진다
 function igAutoCard(){const box=h("div",{class:"card"},h("h2",{},"🤖 만들면 자동 업로드"),h("p",{class:"muted"},"PC에서 불러오는 중…"));
  const paint=d=>{box.innerHTML="";box.append(h("h2",{},"🤖 만들면 자동 업로드"),
@@ -1240,7 +1273,7 @@ function drawSettings(){const f=(k,label,ph,secret)=>{const i=h("input",{value:S
    h("button",{class:"btn small",onclick:importFromPc},"⬇️ PC에서 키 가져오기"))),
   h("div",{class:"card"},h("h2",{},"🔑 키"),...f("claude_key","Claude API 키","sk-ant-…",true),...f("model","Claude 모델","claude-opus-5-5"),...f("kie_key","Kie API 키","",true),
    ...f("notion_token","노션 키","ntn_…",true),...f("notion_memo_db","노션 메모 표 ID"),...f("telegram_token","텔레그램 봇 토큰","123456:ABC…",true),...f("telegram_chat","텔레그램 채팅 ID"),...f("account","카드 아래 @계정","@your_account")),
-  h("p",{class:"muted",style:"text-align:center"},"Creator Studio 앱 3.6 · 키는 이 폰 안에만 저장돼요"))}
+  h("p",{class:"muted",style:"text-align:center"},"Creator Studio 앱 3.7 · 키는 이 폰 안에만 저장돼요"))}
 
 function drawIdeas(){pcView({tab:"ideas",name:"소재 발굴"},async()=>{const d=await pc("/api/ideas");if(CS.tab!=="ideas")return;
  CS.ideaKind=CS.ideaKind||"일반인";const act=async(path,body)=>{try{const r=await pc(path,{method:"POST",body});toast(r.message||"");setTimeout(drawIdeas,path.endsWith("run")?1500:200)}catch(e){toast(e.message)}};

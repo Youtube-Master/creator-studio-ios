@@ -599,14 +599,14 @@ async function render(c,src,account){HINTS=c.breaks||[];if(wmOn())account="";try
 function wmKind(){return S("wm_kind")==="logo"?"logo":"name"}
 function wmAlpha(){return S("wm_alpha")==="light"?.32:.62}
 function wmName(){const t=(S("wm_text")||S("account")).trim().slice(0,40);return /^[A-Za-z0-9._]+$/.test(t)?"@"+t:t}
-function wmOn(){return S("wm")==="1"&&(wmKind()==="logo"?!!S("wm_logo"):!!wmName())}
+function wmOn(){return S("wm")==="1"&&((wmKind()==="logo"&&!!S("wm_logo"))||!!wmName())}  // 로고가 없으면 이름으로 대신(앱 3.8)
 function loadImg(src){return new Promise((ok,bad)=>{const im=new Image();im.onload=()=>ok(im);im.onerror=()=>bad(new Error("그림을 못 읽었어요"));im.src=src})}
 async function wmStamp(url){if(!url||!wmOn())return url;try{const im=await loadImg(url);const w=im.naturalWidth,h=im.naturalHeight;
  const cv=document.createElement("canvas");cv.width=w;cv.height=h;const g=cv.getContext("2d");g.drawImage(im,0,0);
  const l=Math.round(w*.15),rw=Math.round(w*.7),scan=Math.round(h*.12),px=g.getImageData(l,h-scan,rw,scan).data;let free=0;
  for(let y=scan-1;y>=0;y--){let s=0,s2=0;for(let x=0;x<rw;x++){const i=(y*rw+x)*4,v=.299*px[i]+.587*px[i+1]+.114*px[i+2];s+=v;s2+=v*v}const m=s/rw;if(Math.sqrt(Math.max(0,s2/rw-m*m))>6)break;free++}
  const room=free>=h*.03?free:Math.round(h*.05),a=wmAlpha();
- if(wmKind()==="logo"){const lg=await loadImg(S("wm_logo"));const k=Math.min(w*.24/lg.naturalWidth,Math.min(h*.05,room*.72)/lg.naturalHeight);const lw=lg.naturalWidth*k,lh=lg.naturalHeight*k;
+ if(wmKind()==="logo"&&S("wm_logo")){const lg=await loadImg(S("wm_logo"));const k=Math.min(w*.24/lg.naturalWidth,Math.min(h*.05,room*.72)/lg.naturalHeight);const lw=lg.naturalWidth*k,lh=lg.naturalHeight*k;
   g.globalAlpha=a;g.drawImage(lg,(w-lw)/2,h-room+(room-lh)/2,lw,lh)}
  else{const t=wmName(),size=Math.max(16,Math.min(Math.round(w*.034),Math.round(room*.55)));g.font=`700 ${size}px ${FONT}`;g.textBaseline="middle";const tw=g.measureText(t).width,cy=h-room/2;
   const d=g.getImageData(Math.max(0,(w-tw)/2),Math.max(0,cy-size/2),Math.max(1,Math.min(w,tw)),Math.max(1,size)).data;let s=0;for(let i=0;i<d.length;i+=4)s+=.299*d[i]+.587*d[i+1]+.114*d[i+2];const bright=s/(d.length/4)>=140;
@@ -1273,7 +1273,7 @@ function drawSettings(){const f=(k,label,ph,secret)=>{const i=h("input",{value:S
    h("button",{class:"btn small",onclick:importFromPc},"⬇️ PC에서 키 가져오기"))),
   h("div",{class:"card"},h("h2",{},"🔑 키"),...f("claude_key","Claude API 키","sk-ant-…",true),...f("model","Claude 모델","claude-opus-5-5"),...f("kie_key","Kie API 키","",true),
    ...f("notion_token","노션 키","ntn_…",true),...f("notion_memo_db","노션 메모 표 ID"),...f("telegram_token","텔레그램 봇 토큰","123456:ABC…",true),...f("telegram_chat","텔레그램 채팅 ID"),...f("account","카드 아래 @계정","@your_account")),
-  h("p",{class:"muted",style:"text-align:center"},"Creator Studio 앱 3.7 · 키는 이 폰 안에만 저장돼요"))}
+  h("p",{class:"muted",style:"text-align:center"},"Creator Studio 앱 3.8 · 키는 이 폰 안에만 저장돼요"))}
 
 function drawIdeas(){pcView({tab:"ideas",name:"소재 발굴"},async()=>{const d=await pc("/api/ideas");if(CS.tab!=="ideas")return;
  CS.ideaKind=CS.ideaKind||"일반인";const act=async(path,body)=>{try{const r=await pc(path,{method:"POST",body});toast(r.message||"");setTimeout(drawIdeas,path.endsWith("run")?1500:200)}catch(e){toast(e.message)}};
